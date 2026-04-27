@@ -1,0 +1,42 @@
+@import "tailwindcss";
+@config "../../../tailwind.config.js";
+
+@layer base {
+  :root {
+    /* Colores Principales */
+    --primary: 30 136 229;       /* #1E88E5 */
+    --primary-dark: 13 71 161;   /* #0D47A1 */
+    --primary-light: 66 165 245; /* #42A5F5 */
+    
+    /* Superficies y Fondos (Light Mode) */
+    --background: 255 255 255;   /* #FFFFFF */
+    --surface: 245 247 250;      /* #F5F7FA */
+    --border: 224 224 224;       /* #E0E0E0 */
+    
+    /* Textos */
+    --text-primary: 26 26 26;    /* #1A1A1A */
+    --text-secondary: 107 114 128; /* #6B7280 */
+    
+    /* Acentos */
+    --accent: 0 200 83;          /* #00C853 */
+  }
+
+  .dark {
+    /* Superficies y Fondos (Dark Mode) */
+    --background: 18 18 18;      /* #121212 */
+    --surface: 30 30 30;         /* #1E1E1E */
+    --border: 51 51 51;          /* #333333 */
+    
+    /* Textos (Dark Mode) */
+    --text-primary: 255 255 255; /* #FFFFFF */
+    --text-secondary: 161 161 170; /* #A1A1AA */
+  }
+
+  html {
+    font-family: 'Inter', sans-serif;
+  }
+
+  body {
+    @apply bg-[rgb(var(--background))] text-[rgb(var(--text-primary))] transition-colors duration-200;
+  }
+}
