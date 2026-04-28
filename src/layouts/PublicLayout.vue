@@ -125,6 +125,17 @@ const handleLogout = () => {
               <li><router-link to="/register" class="text-sm text-text-secondary hover:text-primary transition-colors">Crear Cuenta</router-link></li>
             </ul>
           </div>
+
+          <div>
+            <h4 class="text-sm font-black uppercase tracking-wider text-text-primary mb-4">Administración</h4>
+            <ul class="space-y-2">
+              <li>
+                <button @click="router.push('/admin/login')" class="text-sm text-text-secondary hover:text-primary transition-colors flex items-center gap-1">
+                  Portal Administrativo
+                </button>
+              </li>
+            </ul>
+          </div>
         </div>
         
         <div class="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
