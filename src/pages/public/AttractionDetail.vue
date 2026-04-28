@@ -208,18 +208,58 @@ function formatExpiry(e) {
 
 function validatePayment() {
   const e = {}
+  const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/
+  
   passengerForms.value.forEach((p, i) => {
-    if (!p.firstName.trim()) e[`fn_${i}`] = 'Nombre requerido'
-    if (!p.lastName.trim()) e[`ln_${i}`] = 'Apellido requerido'
-    if (!p.docNumber.trim()) e[`dn_${i}`] = 'Documento requerido'
+    if (!p.firstName.trim()) {
+      e[`fn_${i}`] = 'Nombre requerido'
+    } else if (!nameRegex.test(p.firstName)) {
+      e[`fn_${i}`] = 'Solo letras'
+    }
+
+    if (!p.lastName.trim()) {
+      e[`ln_${i}`] = 'Apellido requerido'
+    } else if (!nameRegex.test(p.lastName)) {
+      e[`ln_${i}`] = 'Solo letras'
+    }
+
+    if (!p.docNumber.trim()) {
+      e[`dn_${i}`] = 'Documento requerido'
+    } else {
+      if (p.docType === 'Cédula' && !/^\d{10}$/.test(p.docNumber)) {
+        e[`dn_${i}`] = '10 dígitos'
+      } else if (p.docType === 'Pasaporte' && !/^[a-zA-Z0-9]+$/.test(p.docNumber)) {
+        e[`dn_${i}`] = 'Inválido'
+      }
+    }
+
     // Solo validar email para el primer pasajero (contacto)
     if (i === 0) {
-      if (!p.email.trim() || !/^[^@]+@[^@]+\.[^@]+$/.test(p.email)) e[`em_${i}`] = 'Email inválido'
+      if (!p.email.trim() || !/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/.test(p.email)) {
+        e[`em_${i}`] = 'Email inválido'
+      }
     }
   })
+
   const raw = paymentForm.value.cardNumber.replace(/\s/g, '')
   if (raw.length < 16) e.card = 'Número de tarjeta inválido'
-  if (!/^\d{2}\/\d{2}$/.test(paymentForm.value.expiry)) e.expiry = 'Formato MM/AA'
+  
+  // Validación de fecha de vencimiento
+  if (!/^\d{2}\/\d{2}$/.test(paymentForm.value.expiry)) {
+    e.expiry = 'Formato MM/AA'
+  } else {
+    const [mm, aa] = paymentForm.value.expiry.split('/').map(Number)
+    const now = new Date()
+    const curMonth = now.getMonth() + 1
+    const curYear = Number(now.getFullYear().toString().slice(-2))
+    
+    if (mm < 1 || mm > 12) {
+      e.expiry = 'Mes inválido'
+    } else if (aa < curYear || (aa === curYear && mm < curMonth)) {
+      e.expiry = 'Tarjeta vencida'
+    }
+  }
+
   if (paymentForm.value.cvv.length < 3) e.cvv = 'CVV inválido'
   errors.value = e
   return Object.keys(e).length === 0
@@ -791,11 +831,18 @@ onUnmounted(() => { if (leafletMap) { leafletMap.remove(); leafletMap = null } }
                       :class="errors[`ln_${i}`] ? 'border-red-400' : 'border-border'" placeholder="Ej. Pérez Gómez" />
                     <span v-if="errors[`ln_${i}`]" class="text-[10px] text-red-500 font-medium">{{ errors[`ln_${i}`] }}</span>
                   </div>
-                  <div>
-                    <label class="text-[11px] font-bold text-text-secondary uppercase">Pasaporte / Identidad</label>
-                    <input v-model="p.docNumber" @input="clearError(`dn_${i}`)"
-                      class="mt-1 w-full bg-background border rounded-xl py-2 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                      :class="errors[`dn_${i}`] ? 'border-red-400' : 'border-border'" placeholder="Número de documento" />
+                  <div class="sm:col-span-2">
+                    <label class="text-[11px] font-bold text-text-secondary uppercase">Documento de Identidad</label>
+                    <div class="flex gap-2 mt-1">
+                      <select v-model="p.docType"
+                        class="bg-background border border-border rounded-xl px-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none">
+                        <option value="Cédula">Cédula</option>
+                        <option value="Pasaporte">Pasaporte</option>
+                      </select>
+                      <input v-model="p.docNumber" @input="clearError(`dn_${i}`)"
+                        class="flex-1 bg-background border rounded-xl py-2 px-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                        :class="errors[`dn_${i}`] ? 'border-red-400' : 'border-border'" placeholder="Número de documento" />
+                    </div>
                     <span v-if="errors[`dn_${i}`]" class="text-[10px] text-red-500 font-medium">{{ errors[`dn_${i}`] }}</span>
                   </div>
                   <!-- Email only for first passenger (Contact) -->

@@ -21,8 +21,66 @@ const form = ref({
 
 const loading = ref(false)
 const error = ref('')
+const fieldErrors = ref({})
+
+function validateForm() {
+  const errors = {}
+  const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/
+  const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/
+
+  if (!form.value.firstName.trim()) {
+    errors.firstName = 'El nombre es requerido'
+  } else if (!nameRegex.test(form.value.firstName)) {
+    errors.firstName = 'El nombre no debe contener números ni símbolos'
+  }
+
+  if (!form.value.lastName.trim()) {
+    errors.lastName = 'El apellido es requerido'
+  } else if (!nameRegex.test(form.value.lastName)) {
+    errors.lastName = 'El apellido no debe contener números ni símbolos'
+  }
+
+  if (!form.value.email.trim()) {
+    errors.email = 'El correo es requerido'
+  } else if (!emailRegex.test(form.value.email)) {
+    errors.email = 'Ingrese un correo electrónico válido sin símbolos especiales inválidos'
+  }
+
+  // Validación de documento (Cédula vs Pasaporte)
+  if (!form.value.documentNumber.trim()) {
+    errors.documentNumber = 'El número de documento es requerido'
+  } else {
+    if (form.value.documentType === 'DNI') {
+      if (!/^\d+$/.test(form.value.documentNumber)) {
+        errors.documentNumber = 'La cédula debe contener solo números'
+      } else if (form.value.documentNumber.length < 10) {
+        errors.documentNumber = 'La cédula debe tener al menos 10 dígitos'
+      }
+    } else if (form.value.documentType === 'Pasaporte') {
+      if (!/^[a-zA-Z0-9]+$/.test(form.value.documentNumber)) {
+        errors.documentNumber = 'Formato de pasaporte inválido'
+      }
+    }
+  }
+
+  // Validación de contraseña segura
+  if (!form.value.password) {
+    errors.password = 'La contraseña es requerida'
+  } else if (form.value.password.length < 8) {
+    errors.password = 'La contraseña debe tener al menos 8 caracteres'
+  } else if (!/(?=.*[0-9])(?=.*[a-zA-Z])/.test(form.value.password)) {
+    errors.password = 'La contraseña debe incluir letras y números'
+  } else if (form.value.password.toLowerCase().includes('admin') || form.value.password.includes('123')) {
+    errors.password = 'La contraseña es muy común y poco segura'
+  }
+
+  fieldErrors.value = errors
+  return Object.keys(errors).length === 0
+}
 
 async function handleRegister() {
+  if (!validateForm()) return
+
   loading.value = true
   error.value = ''
   try {
@@ -66,20 +124,26 @@ async function handleRegister() {
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <BaseInput 
-                label="Nombre"
-                v-model="form.firstName"
-                placeholder="Juan"
-                :icon="UserIcon"
-                required
-              />
-              <BaseInput 
-                label="Apellido"
-                v-model="form.lastName"
-                placeholder="Pérez"
-                :icon="UserIcon"
-                required
-              />
+              <div>
+                <BaseInput 
+                  label="Nombre"
+                  v-model="form.firstName"
+                  placeholder="Juan"
+                  :icon="UserIcon"
+                  :error="fieldErrors.firstName"
+                  required
+                />
+              </div>
+              <div>
+                <BaseInput 
+                  label="Apellido"
+                  v-model="form.lastName"
+                  placeholder="Pérez"
+                  :icon="UserIcon"
+                  :error="fieldErrors.lastName"
+                  required
+                />
+              </div>
             </div>
 
             <BaseInput 
@@ -88,6 +152,7 @@ async function handleRegister() {
               type="email"
               placeholder="juan@ejemplo.com"
               :icon="EnvelopeIcon"
+              :error="fieldErrors.email"
               required
             />
 
@@ -98,12 +163,25 @@ async function handleRegister() {
                 placeholder="+593 ..."
                 :icon="PhoneIcon"
               />
-              <BaseInput 
-                label="Nº Documento"
-                v-model="form.documentNumber"
-                placeholder="1234567890"
-                :icon="IdentificationIcon"
-              />
+              <div class="space-y-1">
+                <label class="text-sm font-semibold text-text-primary">Tipo y Nº Documento</label>
+                <div class="flex gap-2">
+                  <select 
+                    v-model="form.documentType"
+                    class="bg-background border border-border rounded-xl px-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                  >
+                    <option value="DNI">DNI</option>
+                    <option value="Pasaporte">Pasaporte</option>
+                  </select>
+                  <BaseInput 
+                    v-model="form.documentNumber"
+                    placeholder="1234567890"
+                    :icon="IdentificationIcon"
+                    class="flex-1"
+                    :error="fieldErrors.documentNumber"
+                  />
+                </div>
+              </div>
             </div>
 
             <BaseInput 
@@ -112,6 +190,7 @@ async function handleRegister() {
               type="password"
               placeholder="••••••••"
               :icon="LockClosedIcon"
+              :error="fieldErrors.password"
               required
             />
 
