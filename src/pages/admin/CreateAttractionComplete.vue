@@ -16,10 +16,10 @@ import {
   PhotoIcon, 
   TicketIcon, 
   MapIcon,
-  CheckCircleIcon,
-  TagIcon,
-  LanguageIcon,
-  CheckBadgeIcon
+  CheckBadgeIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  FlagIcon
 } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
@@ -115,6 +115,15 @@ const handleCategoryChange = async () => {
   } else {
     subcategories.value = []
   }
+}
+
+// --- Validation helpers ---
+const onlyLetters = (e) => {
+  const char = String.fromCharCode(e.charCode)
+  if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]$/.test(char)) e.preventDefault()
+}
+const onlyNumbers = (e) => {
+  if (!/\d/.test(String.fromCharCode(e.charCode))) e.preventDefault()
 }
 
 // --- Métodos Helpers ---
@@ -213,7 +222,22 @@ const addPriceTier = (prodIdx) => {
 }
 
 const addStop = () => {
-  form.tourItineraries.stops.push({ name: '', description: '', stayTimeMinutes: 30, admissionType: 'free' })
+  // Contraer todas las paradas existentes
+  form.tourItineraries.stops.forEach(s => s.isCollapsed = true)
+  
+  form.tourItineraries.stops.push({ 
+    name: '', 
+    description: '', 
+    stayTimeMinutes: 30, 
+    admissionType: 'included',
+    latitude: 0,
+    longitude: 0,
+    isCollapsed: false
+  })
+}
+
+const toggleStop = (idx) => {
+  form.tourItineraries.stops[idx].isCollapsed = !form.tourItineraries.stops[idx].isCollapsed
 }
 
 const toggleInclusion = (itemId) => {
@@ -255,10 +279,17 @@ async function handleSubmit() {
       }
     }))
 
-    // Limpiar el objeto de itinerario si no tiene overview ni stops
+    // Formatear el itinerario para que coincida con CompleteItineraryRequest
     const itineraryPayload = (form.tourItineraries.overview || form.tourItineraries.stops.length > 0)
-      ? [form.tourItineraries] // Asumiendo que el endpoint espera un array 'tourItineraries' si hay algo
-      : []
+      ? {
+          languageId: 1, // Por defecto Español como indica el back
+          overview: form.tourItineraries.overview,
+          stops: form.tourItineraries.stops.map((s, index) => ({
+            ...s,
+            stopNumber: index + 1
+          }))
+        }
+      : null
 
     const payload = {
       name: form.name,
@@ -275,7 +306,7 @@ async function handleSubmit() {
       guideLanguages: form.guideLanguages,
       inclusions: form.inclusions,
       products: productsPayload,
-      tourItineraries: itineraryPayload
+      itinerary: itineraryPayload
     }
 
     await attractionService.createComplete(payload)
@@ -343,7 +374,7 @@ async function handleSubmit() {
           <h2 class="text-xl font-bold text-text-primary">Información General</h2>
         </div>
 
-        <BaseInput label="Título de la Atracción" v-model="form.name" required placeholder="Ej: Tour Volcán Cotopaxi" />
+        <BaseInput label="Título de la Atracción" v-model="form.name" required placeholder="Ej: Tour Volcán Cotopaxi" @keypress="onlyLetters" />
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div class="space-y-2">
@@ -387,8 +418,8 @@ async function handleSubmit() {
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-primary/5 p-6 rounded-2xl border border-primary/10">
-          <BaseInput label="Duración Base (Minutos)" type="number" v-model.number="form.baseDurationMinutes" />
-          <BaseInput label="Pol. Cancelación (Horas previas)" type="number" v-model.number="form.baseCancelPolicyHours" />
+          <BaseInput label="Duración Base (Minutos)" type="number" v-model.number="form.baseDurationMinutes" @keypress="onlyNumbers" />
+          <BaseInput label="Pol. Cancelación (Horas previas)" type="number" v-model.number="form.baseCancelPolicyHours" @keypress="onlyNumbers" />
           <p class="col-span-full text-xs text-text-secondary italic">Estos valores se aplicarán por defecto a todas las modalidades (productos) que crees.</p>
         </div>
 
@@ -423,7 +454,7 @@ async function handleSubmit() {
             <BaseInput label="Latitud" v-model.number="form.latitude" type="number" step="0.000001" disabled />
             <BaseInput label="Longitud" v-model.number="form.longitude" type="number" step="0.000001" disabled />
           </div>
-          <BaseInput label="Punto de Encuentro" v-model="form.meetingPoint" placeholder="Instrucciones para el turista..." />
+          <BaseInput label="Punto de Encuentro" v-model="form.meetingPoint" placeholder="Instrucciones para el turista..." @keypress="onlyLetters" />
         </div>
       </div>
 
@@ -550,12 +581,12 @@ async function handleSubmit() {
           <button @click="removeItem(form.products, pIdx)" class="absolute top-6 right-6 text-red-500 hover:bg-red-50 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"><TrashIcon class="h-5 w-5" /></button>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 pr-12">
-            <BaseInput label="Título de la Modalidad" v-model="p.title" placeholder="Ej: Tour Privado VIP" required />
+            <BaseInput label="Título de la Modalidad" v-model="p.title" placeholder="Ej: Tour Privado VIP" required @keypress="onlyLetters" />
             <BaseInput label="Descripción Corta" v-model="p.description" />
             
             <div class="flex gap-4 col-span-1 md:col-span-2">
-              <BaseInput label="Mínimo por Reserva" type="number" v-model.number="p.minParticipants" class="w-1/3" title="Mínimo de tickets que un cliente debe comprar en 1 transacción" />
-              <BaseInput label="Máximo por Reserva" type="number" v-model.number="p.maxGroupSize" class="w-1/3" title="Límite máximo de tickets que un cliente puede comprar en 1 transacción" />
+              <BaseInput label="Mínimo por Reserva" type="number" v-model.number="p.minParticipants" class="w-1/3" title="Mínimo de tickets que un cliente debe comprar en 1 transacción" @keypress="onlyNumbers" />
+              <BaseInput label="Máximo por Reserva" type="number" v-model.number="p.maxGroupSize" class="w-1/3" title="Límite máximo de tickets que un cliente puede comprar en 1 transacción" @keypress="onlyNumbers" />
               <div class="w-1/3 space-y-2">
                 <label class="text-xs font-black uppercase text-text-secondary ml-1">¿Tour Privado?</label>
                 <div class="flex border border-border rounded-xl overflow-hidden h-12">
@@ -589,7 +620,7 @@ async function handleSubmit() {
                   </option>
                 </select>
                 <span class="text-text-secondary px-2 font-bold">$</span>
-                <input type="number" v-model.number="tier.price" class="w-20 bg-transparent outline-none font-black text-lg" placeholder="0.00" />
+                <input type="number" v-model.number="tier.price" class="w-20 bg-transparent outline-none font-black text-lg" placeholder="0.00" @keypress="onlyNumbers" />
                 <button @click="removeItem(p.priceTiers, tIdx)" class="text-red-400 p-2"><TrashIcon class="h-4 w-4" /></button>
               </div>
             </div>
@@ -641,7 +672,7 @@ async function handleSubmit() {
                   </div>
                 </div>
               </div>
-              <BaseInput label="Capacidad Total / Cupos del Vehículo" type="number" v-model.number="p.scheduleTemplate.defaultCapacity" title="Capacidad física total (Inventario) a la venta por horario" />
+              <BaseInput label="Capacidad Total / Cupos del Vehículo" type="number" v-model.number="p.scheduleTemplate.defaultCapacity" title="Capacidad física total (Inventario) a la venta por horario" @keypress="onlyNumbers" />
             </div>
           </div>
         </div>
@@ -660,6 +691,17 @@ async function handleSubmit() {
           <textarea v-model="form.tourItineraries.overview" class="w-full bg-background border border-border rounded-xl p-4 min-h-[100px] outline-none" placeholder="Un resumen de la ruta completa..."></textarea>
         </div>
 
+        <!-- Indicador de Punto de Inicio -->
+        <div v-if="form.meetingPoint" class="bg-primary/5 border border-primary/20 p-4 rounded-2xl flex items-center gap-4">
+          <div class="bg-primary text-white p-2 rounded-full shadow-sm">
+            <FlagIcon class="h-5 w-5" />
+          </div>
+          <div>
+            <span class="text-[10px] font-black uppercase text-primary tracking-widest">Punto de Inicio (Encuentro)</span>
+            <p class="text-sm font-bold text-text-primary">{{ form.meetingPoint }}</p>
+          </div>
+        </div>
+
         <div class="pt-6">
           <div class="flex justify-between items-center mb-4">
             <h3 class="text-sm font-black uppercase text-text-primary">Paradas (Stops)</h3>
@@ -667,35 +709,65 @@ async function handleSubmit() {
           </div>
 
           <div class="space-y-4">
-            <div v-for="(s, sIdx) in form.tourItineraries.stops" :key="sIdx" class="bg-surface border border-border rounded-2xl p-5 relative">
-              <button @click="removeItem(form.tourItineraries.stops, sIdx)" class="absolute top-5 right-5 text-red-500"><TrashIcon class="h-5 w-5" /></button>
-              
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pr-10">
-                <BaseInput label="Nombre de Parada" v-model="s.name" required />
-                <div class="space-y-2">
-                  <label class="text-xs font-black uppercase text-text-secondary ml-1">Tipo de Admisión</label>
-                  <select v-model="s.admissionType" class="w-full bg-background border border-border rounded-xl py-3 px-4 outline-none">
-                    <option value="free">Entrada Libre / Gratis</option>
-                    <option value="ticket_required">Requiere Ticket Pagado</option>
-                  </select>
+            <div v-for="(s, sIdx) in form.tourItineraries.stops" :key="sIdx" class="bg-surface border border-border rounded-2xl overflow-hidden shadow-sm transition-all">
+              <!-- Stop Header (Collapsible) -->
+              <div 
+                @click="toggleStop(sIdx)"
+                class="flex items-center justify-between p-4 cursor-pointer hover:bg-background transition-colors border-b border-transparent"
+                :class="{ 'border-border bg-background': !s.isCollapsed }"
+              >
+                <div class="flex items-center gap-3">
+                  <div 
+                    class="w-8 h-8 rounded-full flex items-center justify-center font-black text-xs border-2"
+                    :class="sIdx === 0 ? 'bg-green-500 border-green-600 text-white' : (sIdx === form.tourItineraries.stops.length - 1 ? 'bg-red-500 border-red-600 text-white' : 'bg-surface border-border text-text-secondary')"
+                  >
+                    {{ sIdx + 1 }}
+                  </div>
+                  <div>
+                    <h4 class="font-bold text-sm text-text-primary flex items-center gap-2">
+                      {{ s.name || 'Nueva Parada' }}
+                      <span v-if="sIdx === 0" class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full uppercase font-black">Primer Destino</span>
+                      <span v-if="sIdx > 0 && sIdx === form.tourItineraries.stops.length - 1" class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full uppercase font-black">Fin del Recorrido</span>
+                    </h4>
+                  </div>
+                </div>
+                <div class="flex items-center gap-4">
+                  <button @click.stop="removeItem(form.tourItineraries.stops, sIdx)" class="text-red-400 hover:text-red-600 p-1"><TrashIcon class="h-4 w-4" /></button>
+                  <ChevronDownIcon class="h-5 w-5 text-text-secondary transition-transform duration-300" :class="{ 'rotate-180': !s.isCollapsed }" />
                 </div>
               </div>
-              
-              <div class="mb-4">
-                <label class="text-xs font-black uppercase text-text-secondary ml-1">Descripción de la parada</label>
-                <textarea v-model="s.description" class="w-full mt-1 bg-background border border-border rounded-xl p-3 text-sm outline-none" rows="2" placeholder="Detalle de lo que se hace en esta parada..."></textarea>
-              </div>
-              
-              <div class="bg-background border border-border p-4 rounded-xl mt-4">
-                <MapPicker 
-                  v-model:lat="s.latitude" 
-                  v-model:lng="s.longitude" 
-                  :label="'Ubicación de ' + (s.name || 'la parada')"
-                />
-                <div class="flex gap-4 mt-4">
-                  <BaseInput label="Tiempo en sitio (Minutos)" type="number" v-model.number="s.stayTimeMinutes" class="w-1/3" />
-                  <BaseInput label="Latitud" type="number" step="0.000001" v-model.number="s.latitude" class="w-1/3" disabled />
-                  <BaseInput label="Longitud" type="number" step="0.000001" v-model.number="s.longitude" class="w-1/3" disabled />
+
+              <!-- Stop Content -->
+              <div v-show="!s.isCollapsed" class="p-5 space-y-4 bg-background">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <BaseInput label="Nombre de Parada" v-model="s.name" required @keypress="onlyLetters" />
+                  <div class="space-y-2">
+                    <label class="text-xs font-black uppercase text-text-secondary ml-1">Tipo de Admisión</label>
+                    <select v-model="s.admissionType" class="w-full bg-surface border border-border rounded-xl py-3 px-4 outline-none">
+                      <option value="included">Incluido en el precio</option>
+                      <option value="optional">Opcional (se paga allá)</option>
+                      <option value="excluded">No incluido (obligatorio pagar allá)</option>
+                      <option value="bring">Llevar (traer entrada/equipo)</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label class="text-xs font-black uppercase text-text-secondary ml-1">Descripción de la parada</label>
+                  <textarea v-model="s.description" class="w-full mt-1 bg-surface border border-border rounded-xl p-3 text-sm outline-none" rows="2" placeholder="Detalle de lo que se hace en esta parada..."></textarea>
+                </div>
+                
+                <div class="bg-surface border border-border p-4 rounded-xl">
+                  <MapPicker 
+                    v-model:lat="s.latitude" 
+                    v-model:lng="s.longitude" 
+                    :label="'Ubicación de ' + (s.name || 'la parada')"
+                  />
+                  <div class="flex gap-4 mt-4">
+                    <BaseInput label="Tiempo en sitio (Minutos)" type="number" v-model.number="s.stayTimeMinutes" class="w-1/3" />
+                    <BaseInput label="Latitud" type="number" step="0.000001" v-model.number="s.latitude" class="w-1/3" disabled />
+                    <BaseInput label="Longitud" type="number" step="0.000001" v-model.number="s.longitude" class="w-1/3" disabled />
+                  </div>
                 </div>
               </div>
             </div>

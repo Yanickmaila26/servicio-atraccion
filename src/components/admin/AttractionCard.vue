@@ -12,20 +12,22 @@ defineProps({
   }
 })
 
-const emit = defineEmits(['edit', 'delete', 'toggle-status'])
+const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active'])
 </script>
 
 <template>
   <div class="bg-background rounded-xl border border-border overflow-hidden hover:shadow-soft transition-all duration-300 group flex flex-col h-full relative">
     
-    <!-- Estado Visual (Solo Admin) -->
+    <!-- Botón de Estado de Publicación (Solo Admin) -->
     <div v-if="isAdmin" class="absolute top-3 right-3 z-10 flex gap-2">
-      <span 
-        class="px-2.5 py-1 text-xs font-semibold rounded-full shadow-sm backdrop-blur-sm" 
-        :class="attraction.isActive ? 'bg-accent/90 text-white' : 'bg-gray-500/90 text-white'"
+      <button 
+        @click.stop="emit('toggle-status', attraction)"
+        class="px-3 py-1.5 text-[10px] font-black uppercase rounded-full shadow-lg backdrop-blur-md transition-all hover:scale-105" 
+        :class="attraction.isPublished ? 'bg-green-500 text-white border border-green-400' : 'bg-gray-500 text-white border border-gray-400'"
+        :title="attraction.isPublished ? 'Hacer Borrador' : 'Publicar'"
       >
-        {{ attraction.isActive ? 'Activo' : 'Inactivo' }}
-      </span>
+        {{ attraction.isPublished ? 'Publicada' : 'Borrador' }}
+      </button>
     </div>
 
     <!-- Imagen -->
@@ -41,12 +43,16 @@ const emit = defineEmits(['edit', 'delete', 'toggle-status'])
       </div>
       
       <!-- Badges públicos -->
-      <div v-if="!isAdmin" class="absolute bottom-3 left-3 flex gap-2 flex-wrap">
-        <span v-if="attraction.categoryName" class="px-2 py-1 text-[10px] font-bold uppercase bg-white/90 text-text-primary rounded-md shadow-sm backdrop-blur-sm">
+      <div v-if="!isAdmin" class="absolute bottom-3 left-3 flex gap-2 flex-wrap max-w-[90%]">
+        <span v-if="attraction.categoryName" class="px-2 py-1 text-[10px] font-bold uppercase bg-white/95 text-text-primary rounded-md shadow-sm backdrop-blur-sm border border-border/50">
           {{ attraction.categoryName }}
         </span>
-        <span v-if="attraction.difficultyLevel" class="px-2 py-1 text-[10px] font-bold uppercase bg-primary/90 text-white rounded-md shadow-sm backdrop-blur-sm">
+        <span v-if="attraction.difficultyLevel" class="px-2 py-1 text-[10px] font-bold uppercase bg-primary text-white rounded-md shadow-sm border border-primary-dark">
           {{ attraction.difficultyLevel === 'easy' ? 'Fácil' : attraction.difficultyLevel === 'moderate' ? 'Moderado' : 'Difícil' }}
+        </span>
+        <!-- Tags -->
+        <span v-for="tag in attraction.tags?.slice(0, 2)" :key="tag.id" class="px-2 py-1 text-[10px] font-bold uppercase bg-background/80 text-text-secondary rounded-md shadow-sm backdrop-blur-sm border border-border">
+          {{ tag.name }}
         </span>
       </div>
     </div>
@@ -81,7 +87,21 @@ const emit = defineEmits(['edit', 'delete', 'toggle-status'])
           </div>
         </div>
         
-        <div v-if="isAdmin" class="flex gap-2">
+        <div v-if="isAdmin" class="flex gap-2 items-center">
+          <!-- Botón Activar/Desactivar -->
+          <button 
+            @click.stop="emit('toggle-active', attraction)"
+            class="transition-colors p-1.5 rounded-md focus:outline-none flex items-center gap-1"
+            :class="attraction.isActive ? 'text-blue-500 hover:bg-blue-50' : 'text-orange-500 hover:bg-orange-50'"
+            :title="attraction.isActive ? 'Desactivar Atracción' : 'Activar Atracción'"
+          >
+            <CheckBadgeIcon v-if="attraction.isActive" class="w-5 h-5" />
+            <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            <span class="text-[10px] font-bold uppercase hidden group-hover:inline">{{ attraction.isActive ? 'Activo' : 'Inactivo' }}</span>
+          </button>
+
           <button 
             @click.stop="emit('edit', attraction)"
             class="text-text-secondary hover:text-primary transition-colors p-1.5 rounded-md hover:bg-surface focus:outline-none"

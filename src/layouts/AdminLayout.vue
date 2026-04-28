@@ -18,11 +18,7 @@ const isSidebarOpen = ref(true)
       
       <!-- Content Area -->
       <main class="flex-1 overflow-x-hidden overflow-y-auto bg-background p-6">
-        <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
+        <router-view :key="$route.fullPath" />
       </main>
     </div>
   </div>

@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { HomeIcon, TicketIcon, UsersIcon, MapPinIcon, MapIcon, TagIcon, ArrowRightOnRectangleIcon, CheckCircleIcon, CalendarDaysIcon, BanknotesIcon } from '@heroicons/vue/24/outline'
+import { HomeIcon, TicketIcon, UsersIcon, MapPinIcon, MapIcon, TagIcon, ArrowRightOnRectangleIcon, CheckCircleIcon, CalendarDaysIcon, BanknotesIcon, ShieldCheckIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps({
@@ -21,7 +21,8 @@ const navigation = [
   { name: 'Ubicaciones', route: 'ManageLocations', icon: MapIcon, roles: ['Admin'] },
   { name: 'Etiquetas', route: 'ManageTags', icon: TagIcon, roles: ['Admin'] },
   { name: 'Inclusiones', route: 'ManageInclusions', icon: CheckCircleIcon, roles: ['Admin'] },
-  { name: 'Usuarios', route: 'ManageClients', icon: UsersIcon, roles: ['Admin'] },
+  { name: 'Clientes', route: 'ManageClients', icon: UsersIcon, roles: ['Admin'] },
+  { name: 'Usuarios Sistema', route: 'ManageUsers', icon: ShieldCheckIcon, roles: ['Admin'] },
   { name: 'Reservas', route: 'ManageBookings', icon: TicketIcon },
 ].filter(item => !item.roles || item.roles.includes(authStore.user?.roles?.[0]))
 

@@ -18,6 +18,7 @@ import {
 import Swal from 'sweetalert2'
 
 const loading = ref(false)
+const initialLoading = ref(true)
 const attractions = ref([])
 const ticketCategories = ref([])
 const selectedAttraction = ref(null)
@@ -37,15 +38,24 @@ const form = ref({
 })
 
 const fetchInitialData = async () => {
+  initialLoading.value = true
   try {
     const [attrRes, catRes] = await Promise.all([
       attractionService.getManagementList({ pageSize: 100 }),
       catalogService.getTicketCategories()
     ])
-    attractions.value = attrRes.items || []
+    attractions.value = attrRes?.items || []
     ticketCategories.value = catRes || []
   } catch (error) {
     console.error(error)
+    Swal.fire({
+      icon: 'error',
+      title: 'Error de conexión',
+      text: 'No se pudieron cargar los datos iniciales del POS.',
+      confirmButtonColor: '#3b82f6'
+    })
+  } finally {
+    initialLoading.value = false
   }
 }
 
@@ -165,7 +175,12 @@ onMounted(fetchInitialData)
       </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 animate-in fade-in">
+    <div v-if="initialLoading" class="flex flex-col items-center justify-center py-20 text-text-secondary">
+      <div class="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p class="font-medium">Cargando datos del sistema...</p>
+    </div>
+
+    <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 animate-in fade-in">
       
       <!-- Columna Izquierda: Selección -->
       <div class="lg:col-span-2 space-y-6">

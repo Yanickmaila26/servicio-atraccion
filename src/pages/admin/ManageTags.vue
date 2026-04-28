@@ -6,6 +6,8 @@ import BaseInput from '@/components/common/BaseInput.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { PlusIcon, PencilIcon, TrashIcon, TagIcon } from '@heroicons/vue/24/outline'
 
+import Swal from 'sweetalert2'
+
 const tags = ref([])
 const loading = ref(true)
 const showModal = ref(false)
@@ -17,12 +19,18 @@ const form = ref({
   slug: ''
 })
 
+const validateName = (name) => {
+  const regex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/
+  return regex.test(name)
+}
+
 const fetchTags = async () => {
   loading.value = true
   try {
     tags.value = await catalogService.getTags()
   } catch (error) {
     console.error(error)
+    Swal.fire('Error', 'No se pudieron cargar las etiquetas.', 'error')
   } finally {
     loading.value = false
   }
@@ -41,29 +49,52 @@ const openEdit = (tag) => {
 }
 
 const handleSubmit = async () => {
+  if (!validateName(form.value.name)) {
+    return Swal.fire('Formato Inválido', 'El nombre solo debe contener letras y espacios.', 'warning')
+  }
+
   modalLoading.value = true
   try {
+    const payload = {
+      name: form.value.name.trim(),
+      slug: form.value.slug?.trim() || null
+    }
+
     if (editingId.value) {
-      await catalogService.updateTag(editingId.value, form.value)
+      await catalogService.updateTag(editingId.value, payload)
+      Swal.fire('Actualizado', 'Etiqueta actualizada.', 'success')
     } else {
-      await catalogService.createTag(form.value)
+      await catalogService.createTag(payload)
+      Swal.fire('Creado', 'Etiqueta creada.', 'success')
     }
     showModal.value = false
     fetchTags()
   } catch (error) {
-    alert(error.message)
+    Swal.fire('Error', error.message, 'error')
   } finally {
     modalLoading.value = false
   }
 }
 
 const handleDelete = async (id) => {
-  if (!confirm('¿Eliminar etiqueta?')) return
+  const result = await Swal.fire({
+    title: '¿Eliminar etiqueta?',
+    text: 'Esta acción no se puede deshacer.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar'
+  })
+
+  if (!result.isConfirmed) return
+
   try {
     await catalogService.deleteTag(id)
+    Swal.fire('Eliminado', 'Etiqueta eliminada.', 'success')
     fetchTags()
   } catch (error) {
-    alert(error.message)
+    Swal.fire('Error', error.message, 'error')
   }
 }
 

@@ -6,6 +6,8 @@ import BaseInput from '@/components/common/BaseInput.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { PlusIcon, PencilIcon, TrashIcon, ChevronDownIcon, ChevronUpIcon, MapPinIcon } from '@heroicons/vue/24/outline'
 
+import Swal from 'sweetalert2'
+
 const locationsTree = ref([])
 const loading = ref(true)
 
@@ -26,12 +28,18 @@ const form = ref({
   parentId: null
 })
 
+const validateName = (name) => {
+  const regex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/
+  return regex.test(name)
+}
+
 const fetchLocations = async () => {
   loading.value = true
   try {
     locationsTree.value = await catalogService.getLocations()
   } catch (error) {
     console.error(error)
+    Swal.fire('Error', 'No se pudieron cargar las ubicaciones.', 'error')
   } finally {
     loading.value = false
   }
@@ -82,19 +90,26 @@ const openEdit = (loc) => {
 }
 
 const handleSubmit = async () => {
+  if (!validateName(form.value.name)) {
+    return Swal.fire('Formato Inválido', 'El nombre solo debe contener letras y espacios.', 'warning')
+  }
+
   modalLoading.value = true
   try {
     const payload = {
-      name: form.value.name,
+      name: form.value.name.trim(),
       type: form.value.type,
-      countryCode: form.value.type === 'Country' ? form.value.countryCode : null,
+      countryCode: form.value.type === 'Country' ? form.value.countryCode?.toUpperCase() : null,
       parentId: form.value.parentId
     }
 
     if (modalMode.value === 'edit') {
       await catalogService.updateLocation(form.value.id, payload)
+      Swal.fire('Actualizado', 'Ubicación actualizada correctamente.', 'success')
     } else {
       await catalogService.createLocation(payload)
+      Swal.fire('Creado', 'Ubicación creada correctamente.', 'success')
+      
       // Auto-expand parent so the new child is visible
       if (form.value.type === 'State' && !expandedCountries.value.includes(form.value.parentId)) {
         expandedCountries.value.push(form.value.parentId)
@@ -106,19 +121,31 @@ const handleSubmit = async () => {
     showModal.value = false
     await fetchLocations()
   } catch (error) {
-    alert(error.message)
+    Swal.fire('Error', error.message, 'error')
   } finally {
     modalLoading.value = false
   }
 }
 
 const handleDelete = async (id) => {
-  if (!confirm('¿Estás seguro de eliminar esta ubicación? Se eliminarán también todas sus ubicaciones hijas.')) return
+  const result = await Swal.fire({
+    title: '¿Eliminar ubicación?',
+    text: 'Se eliminarán también todas sus ubicaciones hijas. Esta acción no se puede deshacer.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar'
+  })
+
+  if (!result.isConfirmed) return
+
   try {
     await catalogService.deleteLocation(id)
+    Swal.fire('Eliminado', 'Ubicación eliminada correctamente.', 'success')
     await fetchLocations()
   } catch (error) {
-    alert(error.message)
+    Swal.fire('Error', error.message, 'error')
   }
 }
 

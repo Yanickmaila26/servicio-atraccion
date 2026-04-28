@@ -13,6 +13,8 @@ import {
   TagIcon 
 } from '@heroicons/vue/24/outline'
 
+import Swal from 'sweetalert2'
+
 const categories = ref([])
 const loading = ref(true)
 const expandedCategoryId = ref(null)
@@ -20,10 +22,15 @@ const subcategoriesMap = ref({}) // { categoryId: [subcats] }
 
 const showModal = ref(false)
 const modalLoading = ref(false)
-const editingItem = ref(null) // { type: 'category'|'subcategory', data: {} }
+const editingItem = ref(null) // { type: 'category'|'subcategory', mode: 'create'|'edit', id: null, parentId: null }
 
 const categoryForm = ref({ name: '', description: '', icon: '' })
 const subcategoryForm = ref({ name: '', categoryId: null })
+
+const validateName = (name) => {
+  const regex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/
+  return regex.test(name)
+}
 
 const fetchCategories = async () => {
   loading.value = true
@@ -31,6 +38,7 @@ const fetchCategories = async () => {
     categories.value = await catalogService.getCategories()
   } catch (error) {
     console.error(error)
+    Swal.fire('Error', 'No se pudieron cargar las categorías.', 'error')
   } finally {
     loading.value = false
   }
@@ -54,24 +62,53 @@ const toggleCategory = async (categoryId) => {
 }
 
 const openCreateCategory = () => {
-  editingItem.value = { type: 'category' }
+  editingItem.value = { type: 'category', mode: 'create' }
   categoryForm.value = { name: '', description: '', icon: '' }
   showModal.value = true
 }
 
+const openEditCategory = (cat) => {
+  editingItem.value = { type: 'category', mode: 'edit', id: cat.id }
+  categoryForm.value = { name: cat.name, description: cat.description, icon: cat.icon }
+  showModal.value = true
+}
+
 const openCreateSubcategory = (categoryId) => {
-  editingItem.value = { type: 'subcategory', parentId: categoryId }
+  editingItem.value = { type: 'subcategory', mode: 'create', parentId: categoryId }
   subcategoryForm.value = { name: '', categoryId }
   showModal.value = true
 }
 
+const openEditSubcategory = (sub, categoryId) => {
+  editingItem.value = { type: 'subcategory', mode: 'edit', id: sub.id, parentId: categoryId }
+  subcategoryForm.value = { name: sub.name, categoryId }
+  showModal.value = true
+}
+
 const handleSubmit = async () => {
+  const nameToValidate = editingItem.value.type === 'category' ? categoryForm.value.name : subcategoryForm.value.name
+  if (!validateName(nameToValidate)) {
+    return Swal.fire('Formato Inválido', 'El nombre solo debe contener letras y espacios.', 'warning')
+  }
+
   modalLoading.value = true
   try {
     if (editingItem.value.type === 'category') {
-      await catalogService.createCategory(categoryForm.value)
+      if (editingItem.value.mode === 'edit') {
+        await catalogService.updateCategory(editingItem.value.id, categoryForm.value)
+        Swal.fire('Actualizado', 'Categoría actualizada.', 'success')
+      } else {
+        await catalogService.createCategory(categoryForm.value)
+        Swal.fire('Creado', 'Categoría creada.', 'success')
+      }
     } else {
-      await catalogService.createSubcategory(editingItem.value.parentId, subcategoryForm.value)
+      if (editingItem.value.mode === 'edit') {
+        await catalogService.updateSubcategory(editingItem.value.id, subcategoryForm.value)
+        Swal.fire('Actualizado', 'Subcategoría actualizada.', 'success')
+      } else {
+        await catalogService.createSubcategory(subcategoryForm.value)
+        Swal.fire('Creado', 'Subcategoría creada.', 'success')
+      }
       // Refresh subcategories for this category
       const subs = await catalogService.getSubcategories(editingItem.value.parentId)
       subcategoriesMap.value[editingItem.value.parentId] = subs
@@ -79,19 +116,55 @@ const handleSubmit = async () => {
     showModal.value = false
     fetchCategories()
   } catch (error) {
-    alert('Error: ' + error.message)
+    Swal.fire('Error', error.message, 'error')
   } finally {
     modalLoading.value = false
   }
 }
 
 const handleDeleteCategory = async (id) => {
-  if (!confirm('¿Eliminar categoría? Esto afectará a sus subcategorías.')) return
+  const result = await Swal.fire({
+    title: '¿Eliminar categoría?',
+    text: 'Esto afectará a sus subcategorías. Esta acción no se puede deshacer.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar'
+  })
+
+  if (!result.isConfirmed) return
+
   try {
     await catalogService.deleteCategory(id)
+    Swal.fire('Eliminado', 'Categoría eliminada.', 'success')
     fetchCategories()
   } catch (error) {
-    alert(error.message)
+    Swal.fire('Error', error.message, 'error')
+  }
+}
+
+const handleDeleteSubcategory = async (sub, categoryId) => {
+  const result = await Swal.fire({
+    title: '¿Eliminar subcategoría?',
+    text: `Eliminarás "${sub.name}". Esta acción no se puede deshacer.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar'
+  })
+
+  if (!result.isConfirmed) return
+
+  try {
+    await catalogService.deleteSubcategory(sub.id)
+    Swal.fire('Eliminado', 'Subcategoría eliminada.', 'success')
+    // Refresh subcategories
+    const subs = await catalogService.getSubcategories(categoryId)
+    subcategoriesMap.value[categoryId] = subs
+  } catch (error) {
+    Swal.fire('Error', error.message, 'error')
   }
 }
 
@@ -130,7 +203,10 @@ onMounted(fetchCategories)
           </div>
           <div class="flex items-center gap-4">
             <div class="flex gap-2">
-              <button @click.stop="handleDeleteCategory(cat.id)" class="p-2 hover:bg-red-50 text-red-500 rounded-lg">
+              <button @click.stop="openEditCategory(cat)" class="p-2 hover:bg-primary/5 text-text-secondary hover:text-primary rounded-lg transition-colors">
+                <PencilIcon class="h-4 w-4" />
+              </button>
+              <button @click.stop="handleDeleteCategory(cat.id)" class="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors">
                 <TrashIcon class="h-4 w-4" />
               </button>
             </div>
@@ -157,9 +233,14 @@ onMounted(fetchCategories)
               class="p-3 bg-surface border border-border rounded-xl flex justify-between items-center group"
             >
               <span class="text-sm font-medium text-text-primary">{{ sub.name }}</span>
-              <button class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all">
-                <TrashIcon class="h-4 w-4" />
-              </button>
+              <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                <button @click="openEditSubcategory(sub, cat.id)" class="p-1 hover:text-primary text-text-secondary">
+                  <PencilIcon class="h-4 w-4" />
+                </button>
+                <button @click="handleDeleteSubcategory(sub, cat.id)" class="p-1 hover:text-red-500 text-red-400">
+                  <TrashIcon class="h-4 w-4" />
+                </button>
+              </div>
             </div>
             <div v-if="subcategoriesMap[cat.id]?.length === 0" class="col-span-full py-4 text-center text-text-secondary text-sm italic">
               No hay subcategorías en esta sección.

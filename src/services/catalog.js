@@ -25,8 +25,14 @@ export default {
   createCategory(data) {
     return api.post('/Category', data)
   },
-  createSubcategory(categoryId, data) {
-    return api.post(`/Category/${categoryId}/Subcategory`, data)
+  createSubcategory(data) {
+    return api.post('/Category/subcategory', data)
+  },
+  updateSubcategory(id, data) {
+    return api.put(`/Category/subcategory/${id}`, data)
+  },
+  deleteSubcategory(id) {
+    return api.delete(`/Category/subcategory/${id}`)
   },
   updateCategory(id, data) {
     return api.put(`/Category/${id}`, data)
@@ -38,6 +44,15 @@ export default {
   // Etiquetas (Tags)
   getTags() {
     return api.get('/Tag')
+  },
+  createTag(data) {
+    return api.post('/Tag', data)
+  },
+  updateTag(id, data) {
+    return api.put(`/Tag/${id}`, data)
+  },
+  deleteTag(id) {
+    return api.delete(`/Tag/${id}`)
   },
   
   // Categorías de Ticket (Adulto, Niño, etc.)

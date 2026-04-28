@@ -1,20 +1,47 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import bookingService from '@/services/bookings'
 import { TicketIcon, UsersIcon, CurrencyDollarIcon, ArrowTrendingUpIcon } from '@heroicons/vue/24/outline'
 
-const stats = ref([
-  { name: 'Ingresos Totales', value: '$45,231.89', change: '+20.1%', changeType: 'positive', icon: CurrencyDollarIcon },
-  { name: 'Nuevos Usuarios', value: '2,314', change: '+15.2%', changeType: 'positive', icon: UsersIcon },
-  { name: 'Reservas Activas', value: '1,203', change: '-3.2%', changeType: 'negative', icon: TicketIcon },
-  { name: 'Conversión', value: '24.5%', change: '+4.1%', changeType: 'positive', icon: ArrowTrendingUpIcon },
-])
+const rawBookings = ref([])
+const loading = ref(true)
 
-const recentBookings = ref([
-  { id: 'RES-1001', user: 'Ana García', attraction: 'Montaña Rusa', date: '2026-04-25', status: 'Confirmado', amount: '$31.00' },
-  { id: 'RES-1002', user: 'Carlos Ruiz', attraction: 'Casa del Terror', date: '2026-04-25', status: 'Pendiente', amount: '$20.00' },
-  { id: 'RES-1003', user: 'María López', attraction: 'Montaña Rusa', date: '2026-04-24', status: 'Confirmado', amount: '$15.50' },
-  { id: 'RES-1004', user: 'Juan Pérez', attraction: 'Rueda de la Fortuna', date: '2026-04-24', status: 'Cancelado', amount: '$12.00' },
-])
+const stats = computed(() => {
+  const bookings = rawBookings.value
+  const totalRevenue = bookings.filter(b => b.statusName?.toLowerCase() === 'succeeded' || b.statusName?.toLowerCase() === 'completed').reduce((sum, b) => sum + b.totalAmount, 0)
+  const activeBookings = bookings.filter(b => b.statusName?.toLowerCase() !== 'cancelled').length
+  
+  return [
+    { name: 'Ingresos Pagados', value: `$${totalRevenue.toFixed(2)}`, change: '100%', changeType: 'positive', icon: CurrencyDollarIcon },
+    { name: 'Total Reservas', value: bookings.length.toString(), change: 'Total', changeType: 'positive', icon: TicketIcon },
+    { name: 'Reservas Activas', value: activeBookings.toString(), change: 'Activas', changeType: 'positive', icon: ArrowTrendingUpIcon },
+    { name: 'Nuevos Usuarios', value: 'N/A', change: 'En progreso', changeType: 'neutral', icon: UsersIcon },
+  ]
+})
+
+const recentBookings = computed(() => {
+  // Tomamos las últimas 5 reservas
+  return rawBookings.value.slice(0, 5).map(b => ({
+    id: b.pnrCode || 'N/A',
+    user: b.clientName || 'Cliente anónimo',
+    attraction: b.attractionName || 'Desconocida',
+    date: b.slotDate || b.createdAt.split('T')[0],
+    status: b.statusName || 'Pendiente',
+    amount: `$${b.totalAmount.toFixed(2)}`
+  }))
+})
+
+onMounted(async () => {
+  loading.value = true
+  try {
+    const data = await bookingService.getManagementList({ pageSize: 50 })
+    rawBookings.value = data.items || []
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error)
+  } finally {
+    loading.value = false
+  }
+})
 </script>
 
 <template>
@@ -84,9 +111,9 @@ const recentBookings = ref([
                 <span 
                   class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full"
                   :class="{
-                    'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400': booking.status === 'Confirmado',
-                    'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400': booking.status === 'Pendiente',
-                    'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400': booking.status === 'Cancelado',
+                    'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400': ['confirmada','confirmed','succeeded','completed'].includes(booking.status?.toLowerCase()),
+                    'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400': ['pendiente','pending'].includes(booking.status?.toLowerCase()),
+                    'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400': ['cancelada','cancelled','failed','refunded'].includes(booking.status?.toLowerCase()),
                   }"
                 >
                   {{ booking.status }}

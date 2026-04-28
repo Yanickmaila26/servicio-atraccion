@@ -5,6 +5,7 @@ import attractionService from '@/services/attractions'
 import bookingService from '@/services/bookings'
 import scheduleService from '@/services/schedule'
 import paymentService from '@/services/payments'
+import reviewService from '@/services/reviews'
 import BaseButton from '@/components/common/BaseButton.vue'
 import Swal from 'sweetalert2'
 import 'leaflet/dist/leaflet.css'
@@ -12,8 +13,10 @@ import {
   MapPinIcon, ClockIcon, UserGroupIcon, CheckBadgeIcon, XMarkIcon,
   LanguageIcon, ShieldCheckIcon, ArrowLeftIcon, StarIcon,
   MapIcon, ChevronDownIcon, MinusIcon, PlusIcon, CreditCardIcon,
-  SpeakerWaveIcon, DocumentTextIcon, MicrophoneIcon
+  SpeakerWaveIcon, DocumentTextIcon, MicrophoneIcon, PhotoIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/vue/24/outline'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,9 +30,18 @@ const selectedProduct = ref(null)
 const availableSlots = ref([])
 const loadingSlots = ref(false)
 const selectedSlot = ref(null)
+const selectedDate = ref(null)
 const ticketCounts = ref({})
 const showPaymentForm = ref(false)
 const processingPayment = ref(false)
+
+const reviews = ref([])
+const reviewsLoading = ref(true)
+const averageRating = computed(() => {
+  if (reviews.value.length === 0) return 0
+  const sum = reviews.value.reduce((acc, r) => acc + r.rating, 0)
+  return sum / reviews.value.length
+})
 
 // Passenger info: one entry per priceTier with qty > 0
 const passengerForms = ref([]) // [{tierId, tierName, qty, firstName, lastName, docType, docNumber}]
@@ -99,6 +111,7 @@ async function selectProduct(prod) {
   ticketCounts.value = {}
   prod.priceTiers.forEach(t => { ticketCounts.value[t.id] = 0 })
   selectedSlot.value = null
+  selectedDate.value = null
   availableSlots.value = []
   showPaymentForm.value = false
   passengerForms.value = []
@@ -121,7 +134,35 @@ function changeQty(tierId, delta) {
   ticketCounts.value[tierId] = next
 }
 
+const groupedSlots = computed(() => {
+  const groups = {}
+  availableSlots.value.forEach(s => {
+    if (!groups[s.slotDate]) groups[s.slotDate] = []
+    groups[s.slotDate].push(s)
+  })
+  return Object.keys(groups).sort().map(date => ({
+    date,
+    slots: groups[date].sort((a, b) => a.startTime.localeCompare(b.startTime))
+  }))
+})
+
 function openPaymentForm() {
+  const authStore = useAuthStore()
+  if (!authStore.isAuthenticated) {
+    Swal.fire({
+      icon: 'info',
+      title: 'Inicia sesión',
+      text: 'Debes iniciar sesión o registrarte para continuar con tu reserva.',
+      confirmButtonText: 'Ir a Login',
+      showCancelButton: true,
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#3b82f6'
+    }).then((res) => {
+      if (res.isConfirmed) router.push('/login')
+    })
+    return
+  }
+
   errors.value = {}
   if (!selectedSlot.value) {
     errors.value.slot = 'Debes seleccionar un horario disponible.'
@@ -129,6 +170,10 @@ function openPaymentForm() {
   }
   if (cartCount.value === 0) {
     errors.value.tickets = 'Debes seleccionar al menos un ticket.'
+    return
+  }
+  if (selectedProduct.value.minParticipants > 1 && cartCount.value < selectedProduct.value.minParticipants) {
+    errors.value.tickets = `Esta experiencia requiere un mínimo de ${selectedProduct.value.minParticipants} participantes.`
     return
   }
   // Build passenger forms per tier
@@ -167,7 +212,10 @@ function validatePayment() {
     if (!p.firstName.trim()) e[`fn_${i}`] = 'Nombre requerido'
     if (!p.lastName.trim()) e[`ln_${i}`] = 'Apellido requerido'
     if (!p.docNumber.trim()) e[`dn_${i}`] = 'Documento requerido'
-    if (!p.email.trim() || !/^[^@]+@[^@]+\.[^@]+$/.test(p.email)) e[`em_${i}`] = 'Email inválido'
+    // Solo validar email para el primer pasajero (contacto)
+    if (i === 0) {
+      if (!p.email.trim() || !/^[^@]+@[^@]+\.[^@]+$/.test(p.email)) e[`em_${i}`] = 'Email inválido'
+    }
   })
   const raw = paymentForm.value.cardNumber.replace(/\s/g, '')
   if (raw.length < 16) e.card = 'Número de tarjeta inválido'
@@ -202,23 +250,16 @@ async function processPayment() {
     await new Promise(r => setTimeout(r, 1500))
     const fakeExternalId = 'pi_' + Math.random().toString(36).substr(2, 9)
 
-    // PASO 3: Registrar el pago en nuestra API
+    // PASO 3: Registrar el pago en nuestra API (Directamente como Completado/Succeeded)
     const paymentPayload = {
       bookingId: booking.id, // Ojo: asumimos que el backend retorna el ID (booking.id)
       paymentMethodId: 1, // 1=Tarjeta
       amount: cartTotal.value,
       currencyCode: 'USD',
-      transactionExternalId: fakeExternalId
+      transactionExternalId: fakeExternalId,
+      statusId: 2 // 2 = Succeeded / Completado
     }
     const payment = await paymentService.create(paymentPayload)
-
-    // PASO 4: Confirmar el estado del pago a Completado (2)
-    const statusPayload = {
-      statusId: 2, // 2 = Pagado/Completado
-      transactionExternalId: fakeExternalId,
-      gatewayResponse: '{ "status": "succeeded" }'
-    }
-    await paymentService.updateStatus(payment.id, statusPayload)
 
     showPaymentForm.value = false
     ticketCounts.value = {}
@@ -249,9 +290,9 @@ async function initMap() {
   // Fix missing default icon images in Vite
   delete L.Icon.Default.prototype._getIconUrl
   L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
   })
 
   const lat = parseFloat(attraction.value.latitude)
@@ -261,7 +302,14 @@ async function initMap() {
   const centerLng = hasCoords ? lng : -87.2068
 
   await nextTick()
-  leafletMap = L.map(mapContainer.value, { zoomControl: true }).setView([centerLat, centerLng], 14)
+  leafletMap = L.map(mapContainer.value, { 
+    zoomControl: true,
+    scrollWheelZoom: false, // Evitar zoom accidental al hacer scroll
+    dragging: true,         // Permitir navegar
+    touchZoom: true,
+    doubleClickZoom: false  // Evitar zoom al hacer doble clic
+  }).setView([centerLat, centerLng], 14)
+
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   }).addTo(leafletMap)
@@ -269,21 +317,33 @@ async function initMap() {
   if (hasCoords) {
     L.marker([centerLat, centerLng])
       .addTo(leafletMap)
-      .bindPopup(`<b>${attraction.value.name}</b>${attraction.value.address ? '<br>' + attraction.value.address : ''}`)
+      .bindPopup(`<b>Punto de Encuentro: ${attraction.value.name}</b>${attraction.value.meetingPoint ? '<br>' + attraction.value.meetingPoint : ''}`)
       .openPopup()
   }
 
   // Paradas del itinerario
+  const pathCoords = []
+  if (hasCoords) pathCoords.push([centerLat, centerLng])
+
   if (attraction.value.itinerary?.stops) {
     attraction.value.itinerary.stops.forEach((stop, idx) => {
       if (!stop.latitude || !stop.longitude) return
       const sLat = parseFloat(stop.latitude)
       const sLng = parseFloat(stop.longitude)
       if (isNaN(sLat) || isNaN(sLng)) return
-      L.circleMarker([sLat, sLng], { radius: 12, color: '#f97316', fillColor: '#f97316', fillOpacity: 1, weight: 2 })
+      
+      const pos = [sLat, sLng]
+      pathCoords.push(pos)
+      
+      L.circleMarker(pos, { radius: 8, color: '#f97316', fillColor: '#f97316', fillOpacity: 1, weight: 2 })
         .addTo(leafletMap)
         .bindPopup(`<b>Parada ${stop.stopNumber}: ${stop.name}</b>${stop.description ? '<br>' + stop.description : ''}`)
     })
+  }
+
+  if (pathCoords.length > 1) {
+    L.polyline(pathCoords, { color: '#f97316', weight: 3, opacity: 0.6, dashArray: '10, 10' }).addTo(leafletMap)
+    leafletMap.fitBounds(L.latLngBounds(pathCoords), { padding: [50, 50] })
   }
 
   setTimeout(() => leafletMap?.invalidateSize(), 300)
@@ -293,14 +353,21 @@ async function initMap() {
 
 onMounted(async () => {
   loading.value = true
+  reviewsLoading.value = true
   try {
-    attraction.value = await attractionService.getBySlug(route.params.slug)
+    const [data, revData] = await Promise.all([
+      attractionService.getBySlug(route.params.slug),
+      reviewService.getByAttraction(route.params.slug)
+    ])
+    attraction.value = data
+    reviews.value = revData.items || []
     await nextTick()
     await initMap()
   } catch (e) {
     console.error(e)
   } finally {
     loading.value = false
+    reviewsLoading.value = false
   }
 })
 
@@ -365,6 +432,23 @@ onUnmounted(() => { if (leafletMap) { leafletMap.remove(); leafletMap = null } }
             </p>
           </section>
 
+          <!-- Gallery Slider -->
+          <section v-if="attraction.gallery && attraction.gallery.length > 0">
+            <h2 class="text-2xl font-bold text-text-primary mb-4 flex items-center gap-2">
+              <PhotoIcon class="h-6 w-6 text-primary" />
+              Galería
+            </h2>
+            <div class="flex overflow-x-auto gap-4 pb-4 snap-x snap-mandatory hide-scrollbar">
+              <div 
+                v-for="img in attraction.gallery" 
+                :key="img.url" 
+                class="min-w-[280px] md:min-w-[400px] h-[200px] md:h-[280px] snap-center shrink-0 rounded-2xl overflow-hidden border border-border shadow-sm group relative"
+              >
+                <img :src="img.url" :alt="img.title" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+              </div>
+            </div>
+          </section>
+
           <!-- Difficulty Banner -->
           <div v-if="attraction.difficultyLevel && difficultyInfo[attraction.difficultyLevel]"
             class="flex items-center gap-4 p-4 rounded-2xl border"
@@ -399,7 +483,7 @@ onUnmounted(() => { if (leafletMap) { leafletMap.remove(); leafletMap = null } }
             <h2 class="text-2xl font-bold text-text-primary mb-4 flex items-center gap-2">
               <MapIcon class="h-6 w-6 text-primary" /> Ubicación
             </h2>
-            <div ref="mapContainer" class="h-80 rounded-3xl overflow-hidden border border-border shadow-sm" style="z-index:0;"></div>
+            <div ref="mapContainer" class="h-80 rounded-3xl overflow-hidden border border-border shadow-sm relative z-0"></div>
           </section>
 
           <!-- Itinerary Stops -->
@@ -415,9 +499,19 @@ onUnmounted(() => { if (leafletMap) { leafletMap.remove(); leafletMap = null } }
                   <div class="bg-surface border border-border rounded-2xl p-5 flex-1">
                     <div class="flex items-start justify-between gap-4">
                       <h3 class="font-bold text-text-primary">{{ stop.name }}</h3>
-                      <span v-if="stop.admissionType" class="text-xs font-bold px-2 py-0.5 rounded-full shrink-0"
-                        :class="stop.admissionType === 'free' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'">
-                        {{ stop.admissionType === 'free' ? 'Entrada libre' : 'Ticket necesario' }}
+                      <span v-if="stop.admissionType" class="text-[10px] font-black uppercase px-2 py-1 rounded-md shrink-0"
+                        :class="{
+                          'bg-green-100 text-green-700': stop.admissionType === 'included',
+                          'bg-yellow-100 text-yellow-700': stop.admissionType === 'optional',
+                          'bg-red-100 text-red-700': stop.admissionType === 'excluded',
+                          'bg-blue-100 text-blue-700': stop.admissionType === 'bring'
+                        }">
+                        {{ 
+                          stop.admissionType === 'included' ? 'Incluido' : 
+                          stop.admissionType === 'optional' ? 'Opcional' : 
+                          stop.admissionType === 'excluded' ? 'No incluido' : 
+                          stop.admissionType === 'bring' ? 'Llevar' : stop.admissionType 
+                        }}
                       </span>
                     </div>
                     <p v-if="stop.description" class="text-sm text-text-secondary mt-2">{{ stop.description }}</p>
@@ -448,6 +542,7 @@ onUnmounted(() => { if (leafletMap) { leafletMap.remove(); leafletMap = null } }
                     <div class="flex flex-wrap gap-4 text-xs font-semibold text-text-secondary mt-2">
                       <span class="flex items-center gap-1"><ClockIcon class="h-3.5 w-3.5" />{{ prod.durationDescription || (prod.durationMinutes ? `${prod.durationMinutes} min` : 'Consultar') }}</span>
                       <span v-if="prod.maxGroupSize" class="flex items-center gap-1"><UserGroupIcon class="h-3.5 w-3.5" />Máx {{ prod.maxGroupSize }} personas</span>
+                      <span v-if="prod.minParticipants > 1" class="flex items-center gap-1 text-primary"><UserIcon class="h-3.5 w-3.5" />Mínimo {{ prod.minParticipants }} personas</span>
                     </div>
                   </div>
                   <div class="text-right shrink-0">
@@ -468,14 +563,30 @@ onUnmounted(() => { if (leafletMap) { leafletMap.remove(); leafletMap = null } }
                       <div v-else-if="availableSlots.length === 0" class="text-sm text-red-500 bg-red-50 p-3 rounded-lg border border-red-200">
                         No hay horarios disponibles para esta experiencia.
                       </div>
-                      <div v-else class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1">
-                        <button v-for="slot in availableSlots" :key="slot.id"
-                          @click="selectedSlot = slot; clearError('slot')"
-                          class="p-2 rounded-xl border text-sm text-center transition-all"
-                          :class="selectedSlot?.id === slot.id ? 'bg-primary border-primary text-white font-bold shadow-md' : 'bg-surface border-border text-text-primary hover:border-primary/50'">
-                          <div class="font-medium">{{ slot.slotDate }}</div>
-                          <div class="text-xs mt-0.5" :class="selectedSlot?.id === slot.id ? 'text-white/90' : 'text-text-secondary'">{{ slot.startTime }}</div>
-                        </button>
+                      <div v-else class="space-y-4">
+                        <!-- Date Selection -->
+                        <div class="flex overflow-x-auto gap-2 pb-2 hide-scrollbar snap-x">
+                          <button v-for="group in groupedSlots" :key="group.date"
+                            @click="selectedDate = group.date; selectedSlot = null"
+                            class="flex-shrink-0 px-4 py-2 rounded-xl border text-center transition-all snap-start"
+                            :class="selectedDate === group.date ? 'bg-primary border-primary text-white font-bold shadow-md' : 'bg-surface border-border text-text-primary hover:border-primary/50'">
+                            <div class="text-[10px] uppercase opacity-80">{{ new Date(group.date).toLocaleDateString('es-ES', { weekday: 'short' }) }}</div>
+                            <div class="text-sm font-bold">{{ new Date(group.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) }}</div>
+                          </button>
+                        </div>
+
+                        <!-- Time Selection -->
+                        <div v-if="selectedDate" class="grid grid-cols-3 sm:grid-cols-4 gap-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                          <button v-for="slot in groupedSlots.find(g => g.date === selectedDate).slots" :key="slot.id"
+                            @click="selectedSlot = slot; clearError('slot')"
+                            class="p-2 rounded-lg border text-sm text-center transition-all"
+                            :class="selectedSlot?.id === slot.id ? 'bg-primary border-primary text-white font-bold shadow-sm' : 'bg-surface border-border text-text-primary hover:border-primary/50'">
+                            {{ slot.startTime }}
+                          </button>
+                        </div>
+                        <div v-else class="text-xs text-text-secondary italic text-center py-2 bg-surface rounded-xl border border-dashed border-border">
+                          Selecciona una fecha para ver los horarios disponibles
+                        </div>
                       </div>
                       <div v-if="errors.slot" class="text-xs text-red-500 mt-1.5 font-medium">{{ errors.slot }}</div>
                     </div>
@@ -507,6 +618,55 @@ onUnmounted(() => { if (leafletMap) { leafletMap.remove(); leafletMap = null } }
                     </div>
 
                   </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Reviews Section -->
+          <section v-if="reviews.length > 0 || reviewsLoading" id="reviews" class="bg-surface border border-border rounded-3xl p-8 shadow-sm">
+            <div class="flex items-center justify-between mb-8">
+              <div>
+                <h2 class="text-2xl font-bold text-text-primary flex items-center gap-2">
+                  <ChatBubbleLeftRightIcon class="h-6 w-6 text-primary" /> Opiniones de viajeros
+                </h2>
+                <div class="flex items-center gap-2 mt-1">
+                  <div class="flex">
+                    <StarIcon v-for="i in 5" :key="i" class="h-4 w-4" :class="i <= Math.round(averageRating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'" />
+                  </div>
+                  <span class="text-sm text-text-secondary">({{ reviews.length }} reseñas)</span>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="reviewsLoading" class="space-y-4">
+              <div v-for="i in 2" :key="i" class="h-32 bg-background animate-pulse rounded-2xl"></div>
+            </div>
+
+            <div v-else-if="reviews.length === 0" class="text-center py-12 bg-background rounded-2xl border border-dashed border-border">
+              <ChatBubbleLeftRightIcon class="h-10 w-10 mx-auto text-text-secondary/20 mb-3" />
+              <p class="text-text-secondary italic">Aún no hay opiniones para esta atracción. ¡Sé el primero en compartir tu experiencia!</p>
+            </div>
+
+            <div v-else class="space-y-6">
+              <div v-for="rev in reviews" :key="rev.id" class="border-b border-border last:border-0 pb-6 last:pb-0">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-3">
+                    <div class="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                      {{ rev.userName?.charAt(0) || 'U' }}
+                    </div>
+                    <div>
+                      <div class="font-bold text-text-primary text-sm">{{ rev.userName }}</div>
+                      <div class="text-[10px] text-text-secondary">{{ new Date(rev.createdAt).toLocaleDateString() }}</div>
+                    </div>
+                  </div>
+                  <div class="flex">
+                    <StarIcon v-for="i in 5" :key="i" class="h-3 w-3" :class="i <= rev.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'" />
+                  </div>
+                </div>
+                <p class="text-text-secondary text-sm leading-relaxed">{{ rev.comment }}</p>
+                <div v-if="rev.isVerified" class="mt-3 flex items-center gap-1.5 text-green-600 text-[10px] font-bold uppercase tracking-wider">
+                  <ShieldCheckIcon class="h-3 w-3" /> Compra Verificada
                 </div>
               </div>
             </div>
@@ -697,3 +857,9 @@ onUnmounted(() => { if (leafletMap) { leafletMap.remove(); leafletMap = null } }
     </div>
   </div>
 </template>
+
+<style scoped>
+.leaflet-container {
+  z-index: 1 !important;
+}
+</style>

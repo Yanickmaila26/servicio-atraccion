@@ -61,6 +61,12 @@ const routes = [
         path: 'inclusions',
         name: 'ManageInclusions',
         component: () => import('@/pages/admin/ManageInclusions.vue')
+      },
+      {
+        path: 'users',
+        name: 'ManageUsers',
+        component: () => import('@/pages/admin/ManageUsers.vue'),
+        meta: { requiresAuth: true, roles: ['Admin'] }
       }
     ]
   },
@@ -98,6 +104,12 @@ const routes = [
         name: 'AttractionDetail',
         component: () => import('@/pages/public/AttractionDetail.vue'),
         props: true
+      },
+      {
+        path: 'my-bookings',
+        name: 'MyBookings',
+        component: () => import('@/pages/public/MyBookings.vue'),
+        meta: { requiresAuth: true }
       }
     ]
   }

@@ -6,6 +6,8 @@ import BaseInput from '@/components/common/BaseInput.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
 import { PlusIcon, PencilIcon, TrashIcon, CheckCircleIcon } from '@heroicons/vue/24/outline'
 
+import Swal from 'sweetalert2'
+
 const inclusions = ref([])
 const loading = ref(true)
 const showModal = ref(false)
@@ -18,12 +20,18 @@ const form = ref({
   languageId: 1
 })
 
+const validateName = (name) => {
+  const regex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/
+  return regex.test(name)
+}
+
 const fetchInclusions = async () => {
   loading.value = true
   try {
     inclusions.value = await catalogService.getInclusions()
   } catch (error) {
     console.error(error)
+    Swal.fire('Error', 'No se pudieron cargar las inclusiones.', 'error')
   } finally {
     loading.value = false
   }
@@ -42,35 +50,53 @@ const openEdit = (inc) => {
 }
 
 const handleSubmit = async () => {
+  if (!validateName(form.value.defaultText)) {
+    return Swal.fire('Formato Inválido', 'El nombre solo debe contener letras y espacios.', 'warning')
+  }
+
   modalLoading.value = true
   try {
     const payload = {
-      defaultText: form.value.defaultText,
-      iconSlug: form.value.iconSlug || null,
+      defaultText: form.value.defaultText.trim(),
+      iconSlug: form.value.iconSlug?.trim() || null,
       languageId: form.value.languageId
     }
     
     if (editingId.value) {
       await catalogService.updateInclusion(editingId.value, payload)
+      Swal.fire('Actualizado', 'Inclusión actualizada correctamente.', 'success')
     } else {
       await catalogService.createInclusion(payload)
+      Swal.fire('Creado', 'Inclusión creada correctamente.', 'success')
     }
     showModal.value = false
     fetchInclusions()
   } catch (error) {
-    alert(error.message)
+    Swal.fire('Error', error.message, 'error')
   } finally {
     modalLoading.value = false
   }
 }
 
 const handleDelete = async (id) => {
-  if (!confirm('¿Eliminar inclusión?')) return
+  const result = await Swal.fire({
+    title: '¿Eliminar inclusión?',
+    text: 'Esta acción no se puede deshacer.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    confirmButtonText: 'Sí, eliminar',
+    cancelButtonText: 'Cancelar'
+  })
+
+  if (!result.isConfirmed) return
+
   try {
     await catalogService.deleteInclusion(id)
+    Swal.fire('Eliminado', 'Inclusión eliminada.', 'success')
     fetchInclusions()
   } catch (error) {
-    alert(error.message)
+    Swal.fire('Error', error.message, 'error')
   }
 }
 

@@ -4,6 +4,8 @@ import bookingService from '@/services/bookings'
 import BaseButton from '@/components/common/BaseButton.vue'
 import { TicketIcon, MagnifyingGlassIcon, ArrowPathIcon, MapPinIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
 
+import Swal from 'sweetalert2'
+
 const bookings = ref([])
 const loading = ref(true)
 const searchQuery = ref('')
@@ -13,7 +15,7 @@ const fetchBookings = async () => {
   loading.value = true
   try {
     const data = await bookingService.getManagementList({ q: searchQuery.value })
-    bookings.value = data.items || []
+    bookings.value = data?.items || []
     
     // Expandir el primer grupo por defecto si hay datos
     if (groupedBookings.value.length > 0) {
@@ -21,6 +23,12 @@ const fetchBookings = async () => {
     }
   } catch (error) {
     console.error(error)
+    Swal.fire({
+      icon: 'error',
+      title: 'Error al cargar reservas',
+      text: error.message || 'No se pudo conectar con el servidor.',
+      confirmButtonColor: '#3b82f6'
+    })
   } finally {
     loading.value = false
   }

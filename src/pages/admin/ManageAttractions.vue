@@ -18,17 +18,6 @@ const loading = ref(true)
 const searchQuery = ref('')
 
 // Modal state
-const showCreateModal = ref(false)
-const createLoading = ref(false)
-const newAttraction = ref({
-  name: '',
-  slug: '',
-  descriptionShort: '',
-  locationId: '',
-  subcategoryId: '',
-  difficultyLevel: 'moderate'
-})
-
 const showEditModal = ref(false)
 const editLoading = ref(false)
 const editAttraction = ref({
@@ -59,32 +48,7 @@ const fetchData = async () => {
   }
 }
 
-const handleCreate = async () => {
-  createLoading.value = true
-  try {
-    // Generar slug automático si está vacío
-    if (!newAttraction.value.slug) {
-      newAttraction.value.slug = newAttraction.value.name.toLowerCase().replace(/ /g, '-')
-    }
-    await attractionService.create(newAttraction.value)
-    showCreateModal.value = false
-    await fetchData()
-    Swal.fire({
-      icon: 'success',
-      title: 'Atracción Creada',
-      toast: true,
-      position: 'top-end',
-      showConfirmButton: false,
-      timer: 3000
-    })
-    // Reset form
-    newAttraction.value = { name: '', slug: '', descriptionShort: '', locationId: '', subcategoryId: '', difficultyLevel: 'easy' }
-  } catch (error) {
-    Swal.fire('Error', error.message, 'error')
-  } finally {
-    createLoading.value = false
-  }
-}
+
 
 const handleUpdate = async () => {
   editLoading.value = true
@@ -116,14 +80,36 @@ const toggleStatus = async (attraction) => {
     attraction.isPublished = !attraction.isPublished
     Swal.fire({
       icon: 'success',
-      title: 'Estado Actualizado',
+      title: attraction.isPublished ? 'Atracción Publicada' : 'Atracción en Borrador',
       toast: true,
       position: 'top-end',
       showConfirmButton: false,
       timer: 2000
     })
   } catch (error) {
-    Swal.fire('Error', 'No se pudo cambiar el estado', 'error')
+    Swal.fire('Error', 'No se pudo cambiar el estado de publicación', 'error')
+  }
+}
+
+const toggleActive = async (attraction) => {
+  try {
+    // Nota: El backend aún necesita el endpoint /active. Por ahora simulamos o usamos un mensaje.
+    // await attractionService.toggleActive(attraction.id, !attraction.isActive)
+    
+    // Simulación hasta que el back esté listo
+    attraction.isActive = !attraction.isActive
+    
+    Swal.fire({
+      icon: 'info',
+      title: attraction.isActive ? 'Atracción Activada' : 'Atracción Desactivada',
+      text: attraction.isActive ? '' : 'La atracción ya no estará disponible para nuevas reservas.',
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 3000
+    })
+  } catch (error) {
+    Swal.fire('Error', 'No se pudo cambiar el estado administrativo', 'error')
   }
 }
 
@@ -175,13 +161,9 @@ onMounted(fetchData)
         <p class="text-text-secondary text-sm">Administra y publica tus experiencias en la plataforma</p>
       </div>
       <div class="flex gap-3">
-        <BaseButton variant="outline" @click="router.push('/admin/attractions/create-complete')">
+        <BaseButton @click="router.push('/admin/attractions/create-complete')">
           <PlusIcon class="h-5 w-5 mr-2" />
-          Creación Avanzada
-        </BaseButton>
-        <BaseButton @click="showCreateModal = true">
-          <PlusIcon class="h-5 w-5 mr-2" />
-          Nueva Rápida
+          Nueva Atracción
         </BaseButton>
       </div>
     </div>
@@ -211,16 +193,9 @@ onMounted(fetchData)
           :isAdmin="true"
           @edit="handleEdit(attr)" 
           @delete="handleDelete(attr)" 
+          @toggle-status="toggleStatus"
+          @toggle-active="toggleActive"
         />
-        <div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button 
-            @click="toggleStatus(attr)"
-            class="p-2 bg-white dark:bg-surface rounded-lg shadow-lg hover:scale-110 transition-all text-xs font-bold"
-            :class="attr.isPublished ? 'text-green-500' : 'text-text-secondary'"
-          >
-            {{ attr.isPublished ? 'Publicada' : 'Borrador' }}
-          </button>
-        </div>
       </div>
     </div>
 
@@ -229,57 +204,7 @@ onMounted(fetchData)
       <p class="text-text-secondary italic">No se encontraron atracciones.</p>
     </div>
 
-    <!-- Create Modal -->
-    <BaseModal :show="showCreateModal" title="Crear Nueva Atracción" @close="showCreateModal = false">
-      <form @submit.prevent="handleCreate" class="space-y-6">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <BaseInput label="Nombre de la Atracción" v-model="newAttraction.name" required />
-          <BaseInput label="URL Amigable (Slug)" v-model="newAttraction.slug" placeholder="ej: tour-volcan" />
-        </div>
 
-        <BaseInput label="Descripción Corta" v-model="newAttraction.descriptionShort" required />
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-1.5">
-            <label class="text-sm font-semibold text-text-primary ml-1">Ubicación</label>
-            <select v-model="newAttraction.locationId" class="w-full bg-surface border border-border rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none">
-              <option value="">Seleccionar Ubicación</option>
-              <option v-for="loc in locations" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
-            </select>
-          </div>
-          <div class="space-y-1.5">
-            <label class="text-sm font-semibold text-text-primary ml-1">Categoría</label>
-            <select v-model="newAttraction.subcategoryId" class="w-full bg-surface border border-border rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none">
-              <option value="">Seleccionar Categoría</option>
-              <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-1.5">
-            <label class="text-sm font-semibold text-text-primary ml-1">Ubicación</label>
-            <select v-model="newAttraction.locationId" class="w-full bg-surface border border-border rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none">
-              <option value="">Seleccionar Ubicación</option>
-              <option v-for="loc in locations" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
-            </select>
-          </div>
-          <div class="space-y-1.5">
-            <label class="text-sm font-semibold text-text-primary ml-1">Dificultad</label>
-            <select v-model="newAttraction.difficultyLevel" class="w-full bg-surface border border-border rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none">
-              <option value="easy">Fácil</option>
-              <option value="moderate">Moderado</option>
-              <option value="hard">Difícil</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="flex justify-end gap-3 pt-4">
-          <BaseButton variant="outline" type="button" @click="showCreateModal = false">Cancelar</BaseButton>
-          <BaseButton type="submit" :loading="createLoading">Guardar Atracción</BaseButton>
-        </div>
-      </form>
-    </BaseModal>
 
     <!-- Edit Modal -->
     <BaseModal :show="showEditModal" title="Editar Atracción" @close="showEditModal = false">

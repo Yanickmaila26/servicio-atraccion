@@ -128,10 +128,10 @@ GO
 -- 6. TICKET CATEGORIES (Catálogo)
 -- ======================================================
 INSERT INTO [dbo].[TicketCategory] ([Id], [Name], [NameEn], [AgeRangeMin], [AgeRangeMax], [SortOrder]) VALUES
-    ('A1B2C3D4-E5F6-4A1B-8C9D-0E1F2A3B4C5D', 'Adulto', 'Adult (18-100)', 18, 100, 1),
-    ('B2C3D4E5-F6A1-4B2C-9D0E-1F2A3B4C5D6E', 'Adulto (13-64)', 'Adult (13-64)', 13, 64, 2),
-    ('C3D4E5F6-A1B2-4C3D-0E1F-2A3B4C5D6E7F', 'Júnior', 'Junior (5-12)', 5, 12, 3),
-    ('D4E5F6A1-B2C3-4D4E-1F2A-3B4C5D6E7F8A', 'Infantil', 'Infant (0-4)', 0, 4, 4);
+    ('A1B2C3D4-E5F6-4A1B-8C9D-0E1F2A3B4C5D', 'Adulto', 'Adult (18-64)', 18, 64, 1),
+    ('B2C3D4E5-F6A1-4B2C-9D0E-1F2A3B4C5D6E', 'Adulto Mayor', 'Adult (65-100)', 65, 100, 2),
+    ('C3D4E5F6-A1B2-4C3D-0E1F-2A3B4C5D6E7F', 'Niños', 'Junior (5-12)', 5, 12, 3),
+    ('D4E5F6A1-B2C3-4D4E-1F2A-3B4C5D6E7F8A', 'Bebé', 'Infant (0-4)', 0, 4, 4);
 GO
 
 -- ======================================================
