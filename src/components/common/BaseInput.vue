@@ -1,3 +1,9 @@
+<script>
+export default {
+  inheritAttrs: false
+}
+</script>
+
 <script setup>
 defineProps({
   label: String,
@@ -21,6 +27,7 @@ defineEmits(['update:modelValue'])
         <component :is="icon" class="h-5 w-5" />
       </div>
       <input
+        v-bind="$attrs"
         :type="type"
         :value="modelValue"
         @input="$emit('update:modelValue', $event.target.value)"

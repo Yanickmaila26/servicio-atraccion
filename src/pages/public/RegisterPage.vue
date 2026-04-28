@@ -78,6 +78,15 @@ function validateForm() {
   return Object.keys(errors).length === 0
 }
 
+function onlyLetters(e) {
+  const char = String.fromCharCode(e.charCode)
+  if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]$/.test(char)) e.preventDefault()
+}
+
+function onlyNumbers(e) {
+  if (!/\d/.test(String.fromCharCode(e.charCode))) e.preventDefault()
+}
+
 async function handleRegister() {
   if (!validateForm()) return
 
@@ -131,6 +140,7 @@ async function handleRegister() {
                   placeholder="Juan"
                   :icon="UserIcon"
                   :error="fieldErrors.firstName"
+                  @keypress="onlyLetters"
                   required
                 />
               </div>
@@ -141,6 +151,7 @@ async function handleRegister() {
                   placeholder="Pérez"
                   :icon="UserIcon"
                   :error="fieldErrors.lastName"
+                  @keypress="onlyLetters"
                   required
                 />
               </div>
@@ -162,6 +173,7 @@ async function handleRegister() {
                 v-model="form.phone"
                 placeholder="+593 ..."
                 :icon="PhoneIcon"
+                @keypress="onlyNumbers"
               />
               <div class="space-y-1">
                 <label class="text-sm font-semibold text-text-primary">Tipo y Nº Documento</label>
@@ -179,6 +191,7 @@ async function handleRegister() {
                     :icon="IdentificationIcon"
                     class="flex-1"
                     :error="fieldErrors.documentNumber"
+                    @keypress="form.documentType === 'DNI' ? onlyNumbers($event) : null"
                   />
                 </div>
               </div>
