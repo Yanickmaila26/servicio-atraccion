@@ -20,7 +20,13 @@ api.interceptors.request.use(
 )
 
 api.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    // Si la respuesta tiene el formato estándar { success, data, message, errors }
+    if (response.data && Object.prototype.hasOwnProperty.call(response.data, 'success')) {
+      return response.data.data
+    }
+    return response.data
+  },
   (error) => {
     const response = error.response
     const authStore = useAuthStore()
