@@ -89,11 +89,11 @@ onMounted(async () => {
   try {
     let a = null
     try {
+      console.log('Cargando detalle de atracción ID:', attractionId)
       // Intentar endpoints de detalle (internamente attractions.js ya prueba /management y /complete)
       a = await attractionService.getManagementDetail(attractionId)
     } catch (err) {
       console.warn('Los endpoints de detalle fallaron, intentando recuperación desde lista de gestión...')
-      // ULTIMO RECURSO: Si está en el dashboard, está en esta lista.
       const managementRes = await attractionService.getManagementList({ pageSize: 100 })
       const list = managementRes?.items || managementRes?.data || (Array.isArray(managementRes) ? managementRes : [])
       a = list.find(item => item.id === attractionId)
@@ -101,18 +101,21 @@ onMounted(async () => {
     
     if (!a) throw new Error('La atracción no existe o no tienes permisos para editarla.')
 
-    const [locData, catData, tagData, incData] = await Promise.all([
-      catalogService.getLocations(),
-      catalogService.getCategories(),
-      catalogService.getTags(),
-      catalogService.getInclusions()
-    ])
+    console.log('Datos de atracción recibidos:', a)
+
+    // Cargar catálogos con logging individual para detectar fallos específicos
+    let locData = [], catData = [], tagData = [], incData = []
+    try { locData = await catalogService.getLocations() } catch (e) { console.error('Error cargando Ubicaciones:', e) }
+    try { catData = await catalogService.getCategories() } catch (e) { console.error('Error cargando Categorías:', e) }
+    try { tagData = await catalogService.getTags() } catch (e) { console.error('Error cargando Etiquetas:', e) }
+    try { incData = await catalogService.getInclusions() } catch (e) { console.error('Error cargando Inclusiones:', e) }
+
     locations.value = locData || []
     categories.value = catData || []
     availableTags.value = tagData || []
     availableInclusions.value = incData || []
 
-    // Populate form
+    // Poblar formulario
     form.name = a.name || ''
     form.descriptionShort = a.descriptionShort || ''
     form.descriptionFull = a.descriptionFull || ''
@@ -122,19 +125,27 @@ onMounted(async () => {
     form.longitude = a.longitude || 0
     form.locationId = a.locationId || ''
     form.subcategoryId = a.subcategoryId || ''
-    form.tags = (a.tags || []).map(t => t.id)
-    form.inclusions = (a.inclusions || []).map(i => i.id)
+    
+    // Mapeo robusto de Tags e Inclusiones
+    form.tags = (a.tags || []).map(t => t.id || t.tagId).filter(id => !!id)
+    form.inclusions = (a.inclusions || []).map(i => i.inclusionItemId || i.id).filter(id => !!id)
+    
     form.itinerary = {
       overview: a.itinerary?.overview || '',
       stops: (a.itinerary?.stops || []).map(s => ({ ...s }))
     }
 
-    if (a.categoryId || a.subcategoryId) {
-      selectedCategoryId.value = a.categoryId || ''
+    // Seleccionar categoría para cargar subcategorías
+    if (a.categoryId) {
+      selectedCategoryId.value = a.categoryId
+    } else if (a.categoryName && categories.value.length) {
+      const cat = categories.value.find(c => c.name === a.categoryName)
+      if (cat) selectedCategoryId.value = cat.id
     }
     
-    if (a.locationId) {
-       countries.value.forEach(c => {
+    // Reconstruir árbol de ubicación (País -> Estado -> Ciudad)
+    if (a.locationId && locations.value.length) {
+       locations.value.forEach(c => {
          c.children?.forEach(s => {
            if (s.children?.some(city => city.id === a.locationId)) {
              selectedCountryId.value = c.id
@@ -144,8 +155,8 @@ onMounted(async () => {
        })
     }
   } catch (e) {
-    console.error(e)
-    Swal.fire('Error', 'No se pudo cargar la atracción. ' + e.message, 'error')
+    console.error('Error crítico en EditAttraction:', e)
+    Swal.fire('Error', 'No se pudo cargar la atracción: ' + e.message, 'error')
   } finally {
     loading.value = false
   }
