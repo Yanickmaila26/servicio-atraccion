@@ -87,10 +87,19 @@ function removeStop(idx) { form.itinerary.stops.splice(idx, 1) }
 
 onMounted(async () => {
   try {
-    // NUEVO: Usar el endpoint optimizado de gestión
-    const a = await attractionService.getManagementDetail(attractionId)
+    let a = null
+    try {
+      // Intentar endpoints de detalle (internamente attractions.js ya prueba /management y /complete)
+      a = await attractionService.getManagementDetail(attractionId)
+    } catch (err) {
+      console.warn('Los endpoints de detalle fallaron, intentando recuperación desde lista de gestión...')
+      // ULTIMO RECURSO: Si está en el dashboard, está en esta lista.
+      const managementRes = await attractionService.getManagementList({ pageSize: 100 })
+      const list = managementRes?.items || managementRes?.data || (Array.isArray(managementRes) ? managementRes : [])
+      a = list.find(item => item.id === attractionId)
+    }
     
-    if (!a) throw new Error('No se encontró la información de la atracción.')
+    if (!a) throw new Error('La atracción no existe o no tienes permisos para editarla.')
 
     const [locData, catData, tagData, incData] = await Promise.all([
       catalogService.getLocations(),
