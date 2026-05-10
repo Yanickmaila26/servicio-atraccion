@@ -1,5 +1,5 @@
 <script setup>
-import { MapPinIcon, TagIcon } from '@heroicons/vue/24/outline'
+import { MapPinIcon, TagIcon, TicketIcon, CheckBadgeIcon } from '@heroicons/vue/24/outline'
 
 defineProps({
   attraction: { 
@@ -12,7 +12,7 @@ defineProps({
   }
 })
 
-const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active'])
+const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active', 'view-modalities'])
 </script>
 
 <template>
@@ -73,7 +73,6 @@ const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active'])
       </p>
       
       <div class="flex items-end justify-between mt-auto pt-4 border-t border-border">
-        <div>
           <span v-if="isAdmin" class="text-xs font-bold text-text-secondary bg-surface px-2 py-1 rounded border border-border">
             {{ attraction.products?.length || 0 }} Modalidades
           </span>
@@ -111,6 +110,13 @@ const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active'])
               <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.89 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.89l12.683-12.683z" />
               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 7.125L16.862 4.487" />
             </svg>
+          </button>
+          <button 
+            @click.stop="emit('view-modalities', attraction)"
+            class="text-text-secondary hover:text-primary transition-colors p-1.5 rounded-md hover:bg-surface focus:outline-none"
+            title="Ver Modalidades"
+          >
+            <TicketIcon class="w-5 h-5" />
           </button>
           <button 
             @click.stop="emit('delete', attraction)"

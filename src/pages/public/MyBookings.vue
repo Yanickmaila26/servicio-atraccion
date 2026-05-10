@@ -61,6 +61,7 @@ const groupedBookings = computed(() => {
       groups[key] = {
         ...b,
         pnrList: [b.pnrCode],
+        cancelPolicyHours: b.cancelPolicyHours,
         // Clonamos tickets para no mutar el original
         allTickets: b.tickets.map(t => ({ ...t }))
       }
@@ -109,6 +110,46 @@ const submitReview = async () => {
     submittingReview.value = false
   }
 }
+
+const isBookingClosed = (booking) => {
+  if (booking.statusId === 3 || booking.statusId === 4) return false; // Ya completada o cancelada
+  const slotDate = new Date(`${booking.slotDate}T${booking.slotStartTime}`)
+  return Date.now() > slotDate.getTime()
+}
+
+const canCancelBooking = (booking) => {
+  if (booking.statusId !== 1 && booking.statusId !== 2) return false;
+  if (isBookingClosed(booking)) return false;
+  const slotDate = new Date(`${booking.slotDate}T${booking.slotStartTime}`)
+  const cancelThreshold = new Date(slotDate.getTime() - (booking.cancelPolicyHours * 60 * 60 * 1000))
+  return Date.now() <= cancelThreshold.getTime()
+}
+
+const cancelBookingGroup = async (booking) => {
+  const result = await Swal.fire({
+    title: '¿Cancelar Reserva?',
+    text: `¿Estás seguro de cancelar esta reserva? Se cancelarán los PNR: ${booking.pnrList.join(', ')}.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#6b7280',
+    confirmButtonText: 'Sí, Cancelar',
+    cancelButtonText: 'No, mantener'
+  })
+
+  if (result.isConfirmed) {
+    try {
+      // Cancelar todos los PNRs en este grupo
+      for (const pnr of booking.pnrList) {
+        await bookingService.cancel(pnr, 'Cancelado por el cliente desde portal')
+      }
+      Swal.fire('Cancelada', 'La reserva ha sido cancelada.', 'success')
+      fetchData()
+    } catch (error) {
+      Swal.fire('Error', error.response?.data?.message || 'Hubo un error al cancelar', 'error')
+    }
+  }
+}
 </script>
 
 <template>
@@ -145,9 +186,9 @@ const submitReview = async () => {
                   </span>
                 </div>
                 <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase flex items-center gap-1"
-                  :class="statusConfig[booking.statusId]?.color || 'bg-gray-100 text-gray-600'">
-                  <component :is="statusConfig[booking.statusId]?.icon || PendingIcon" class="h-3 w-3" />
-                  {{ booking.statusName || 'Desconocido' }}
+                  :class="isBookingClosed(booking) ? 'bg-gray-100 text-gray-600' : (statusConfig[booking.statusId]?.color || 'bg-gray-100 text-gray-600')">
+                  <component :is="isBookingClosed(booking) ? XCircleIcon : (statusConfig[booking.statusId]?.icon || PendingIcon)" class="h-3 w-3" />
+                  {{ isBookingClosed(booking) ? 'Cerrada' : (booking.statusName || 'Desconocido') }}
                 </span>
               </div>
               
@@ -193,6 +234,13 @@ const submitReview = async () => {
                   class="flex items-center justify-center gap-2 px-4 py-3 bg-yellow-400 text-yellow-950 rounded-xl text-sm font-black hover:bg-yellow-500 transition-all shadow-sm"
                 >
                   <StarIcon class="h-4 w-4 fill-yellow-950" /> Dejar reseña
+                </button>
+                <button
+                  v-if="canCancelBooking(booking)"
+                  @click="cancelBookingGroup(booking)"
+                  class="flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-bold hover:bg-red-100 transition-all shadow-sm"
+                >
+                  <XCircleIcon class="h-4 w-4" /> Cancelar Reserva
                 </button>
                 <router-link :to="`/attractions/${booking.attractionSlug}`" class="flex items-center justify-center gap-2 px-4 py-3 bg-surface border border-border rounded-xl text-sm font-bold text-text-primary hover:bg-background transition-all">
                   Ver Atracción <ChevronRightIcon class="h-4 w-4" />

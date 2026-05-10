@@ -21,7 +21,7 @@ export default {
     return api.post('/Booking', data)
   },
 
-  cancel(id) {
-    return api.post(`/Booking/${id}/cancel`)
+  cancel(pnrCode, reason = '') {
+    return api.post('/Booking/cancel', { pnrCode, cancelReason: reason })
   }
 }

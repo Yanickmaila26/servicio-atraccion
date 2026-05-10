@@ -23,6 +23,11 @@ const routes = [
         component: () => import('@/pages/admin/CreateAttractionComplete.vue')
       },
       {
+        path: 'attractions/:id/modalities',
+        name: 'ManageModalities',
+        component: () => import('@/pages/admin/ManageModalities.vue')
+      },
+      {
         path: 'clients',
         name: 'ManageClients',
         component: () => import('@/pages/admin/ManageClients.vue')

@@ -150,6 +150,10 @@ const handleEdit = (attraction) => {
   showEditModal.value = true
 }
 
+const handleViewModalities = (attraction) => {
+  router.push(`/admin/attractions/${attraction.id}/modalities`)
+}
+
 onMounted(fetchData)
 </script>
 
@@ -195,6 +199,7 @@ onMounted(fetchData)
           @delete="handleDelete(attr)" 
           @toggle-status="toggleStatus"
           @toggle-active="toggleActive"
+          @view-modalities="handleViewModalities(attr)"
         />
       </div>
     </div>

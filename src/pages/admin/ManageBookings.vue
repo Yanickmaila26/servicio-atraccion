@@ -68,6 +68,47 @@ const getStatusClass = (status) => {
   }
 }
 
+const isBookingClosed = (booking) => {
+  if (booking.statusId === 3 || booking.statusId === 4 || booking.statusName?.toLowerCase() === 'cancelada') return false;
+  if (!booking.slotDate || !booking.slotStartTime) return false;
+  const slotDate = new Date(`${booking.slotDate}T${booking.slotStartTime}`)
+  return Date.now() > slotDate.getTime()
+}
+
+const canCancelBooking = (booking) => {
+  if (booking.statusId === 3 || booking.statusId === 4 || booking.statusName?.toLowerCase() === 'cancelada') return false;
+  if (isBookingClosed(booking)) return false;
+  if (!booking.slotDate || !booking.slotStartTime || booking.cancelPolicyHours == null) return false;
+  const slotDate = new Date(`${booking.slotDate}T${booking.slotStartTime}`)
+  const cancelThreshold = new Date(slotDate.getTime() - (booking.cancelPolicyHours * 60 * 60 * 1000))
+  return Date.now() <= cancelThreshold.getTime()
+}
+
+const cancelBooking = async (booking) => {
+  const result = await Swal.fire({
+    title: '¿Cancelar Reserva?',
+    text: `¿Estás seguro de cancelar la reserva PNR: ${booking.pnrCode || booking.pnr}?`,
+    icon: 'warning',
+    input: 'text',
+    inputPlaceholder: 'Motivo de cancelación (opcional)',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#6b7280',
+    confirmButtonText: 'Sí, Cancelar',
+    cancelButtonText: 'No, mantener'
+  })
+
+  if (result.isConfirmed) {
+    try {
+      await bookingService.cancel(booking.pnrCode || booking.pnr, result.value || 'Cancelado por el administrador')
+      Swal.fire('Cancelada', 'La reserva ha sido cancelada.', 'success')
+      fetchBookings()
+    } catch (error) {
+      Swal.fire('Error', error.response?.data?.message || 'Hubo un error al cancelar', 'error')
+    }
+  }
+}
+
 onMounted(fetchBookings)
 </script>
 
@@ -147,6 +188,7 @@ onMounted(fetchBookings)
                 <th class="px-6 py-4 text-center">Fecha del Tour</th>
                 <th class="px-6 py-4 text-right">Total Pagado</th>
                 <th class="px-6 py-4 text-center">Estado</th>
+                <th class="px-6 py-4 text-center">Acciones</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-border/50">
@@ -163,9 +205,21 @@ onMounted(fetchBookings)
                   {{ booking.currencyCode || '$' }} {{ booking.totalAmount?.toFixed(2) || '0.00' }}
                 </td>
                 <td class="px-6 py-4 text-center">
-                  <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border" :class="getStatusClass(booking.statusName || booking.status)">
+                  <span v-if="isBookingClosed(booking)" class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border bg-gray-100 text-gray-700 border-gray-200">
+                    Cerrada
+                  </span>
+                  <span v-else class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border" :class="getStatusClass(booking.statusName || booking.status)">
                     {{ booking.statusName || booking.status }}
                   </span>
+                </td>
+                <td class="px-6 py-4 text-center">
+                  <button 
+                    v-if="canCancelBooking(booking)" 
+                    @click="cancelBooking(booking)" 
+                    class="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors border border-red-100"
+                  >
+                    Cancelar
+                  </button>
                 </td>
               </tr>
             </tbody>
