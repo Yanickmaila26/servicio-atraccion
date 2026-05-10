@@ -87,25 +87,10 @@ function removeStop(idx) { form.itinerary.stops.splice(idx, 1) }
 
 onMounted(async () => {
   try {
-    let a = null
-    // Intento 1: GetById directo (PascalCase) o plural (lowercase)
-    try {
-      a = await attractionService.getById(attractionId)
-    } catch (err) {
-      console.warn('GetById falló, intentando ManagementDetail...', err)
-      // Intento 2: Management Detail
-      try {
-        a = await attractionService.getManagementDetail(attractionId)
-      } catch (err2) {
-        console.warn('ManagementDetail falló, intentando filtrado en lista...', err2)
-        // Intento 3: Buscar en la lista de gestión
-        const managementRes = await attractionService.getManagementList({ pageSize: 100 })
-        const list = managementRes?.items || managementRes?.data || (Array.isArray(managementRes) ? managementRes : [])
-        a = list.find(item => item.id === attractionId)
-      }
-    }
+    // NUEVO: Usar el endpoint optimizado de gestión
+    const a = await attractionService.getManagementDetail(attractionId)
     
-    if (!a) throw new Error('Atracción no encontrada con ID: ' + attractionId)
+    if (!a) throw new Error('No se encontró la información de la atracción.')
 
     const [locData, catData, tagData, incData] = await Promise.all([
       catalogService.getLocations(),

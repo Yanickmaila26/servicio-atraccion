@@ -77,12 +77,12 @@ const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active', 'v
             v-if="isAdmin" 
             @click.stop="emit('view-modalities', attraction)"
             class="text-[10px] font-black uppercase px-2 py-1 rounded border transition-all hover:shadow-sm"
-            :class="(attraction.products?.length || attraction.productCount || attraction.modalityCount || attraction.optionsCount || 0) > 0 
+            :class="(attraction.modalityCount || attraction.productCount || attraction.products?.length || 0) > 0 
               ? 'bg-surface text-text-secondary border-border hover:bg-primary/5 hover:text-primary hover:border-primary/20' 
               : 'bg-primary/5 text-primary border-primary/30 hover:bg-primary hover:text-white hover:border-primary'"
           >
-            {{ (attraction.products?.length || attraction.productCount || attraction.modalityCount || attraction.optionsCount || 0) }} {{ (attraction.products?.length || attraction.productCount || attraction.modalityCount || attraction.optionsCount || 0) === 1 ? 'Modalidad' : 'Modalidades' }}
-            <span v-if="(attraction.products?.length || attraction.productCount || attraction.modalityCount || attraction.optionsCount || 0) === 0" class="ml-1">+</span>
+            {{ (attraction.modalityCount || attraction.productCount || attraction.products?.length || 0) }} {{ (attraction.modalityCount || attraction.productCount || attraction.products?.length || 0) === 1 ? 'Modalidad' : 'Modalidades' }}
+            <span v-if="(attraction.modalityCount || attraction.productCount || attraction.products?.length || 0) === 0" class="ml-1">+</span>
           </button>
           <div v-else class="text-sm font-bold text-primary">
             <template v-if="attraction.startingPrice > 0">

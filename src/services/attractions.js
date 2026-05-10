@@ -15,22 +15,18 @@ export default {
   },
 
   getById(id) {
-    // Intentar endpoint PascalCase (común en .NET)
-    return api.get(`/Attraction/${id}`).catch(() => {
-      // Si falla, intentar endpoint plural minúsculas (según YAML)
-      return api.get(`/atracciones/${id}`)
-    })
+    // Para marketplace/público (puede usar slug o ID)
+    return api.get(`/Attraction/${id}`)
   },
 
   getManagementDetail(id) {
-    // Endpoint específico de administración si existe
-    return api.get(`/Attraction/management/${id}`).catch(() => {
-       return api.get(`/atracciones/management/${id}`)
-    })
+    // NUEVO: Endpoint optimizado para edición administrativa
+    return api.get(`/Attraction/management/${id}`)
   },
 
   // Administrativos
   getManagementList(params) {
+    // params puede incluir pageNumber, pageSize, search, etc.
     return api.get('/Attraction/management', { params })
   },
 

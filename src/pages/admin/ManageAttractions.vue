@@ -22,7 +22,11 @@ const fetchData = async () => {
   loading.value = true
   try {
     const [attrData, locData, catData] = await Promise.all([
-      attractionService.getManagementList({ q: searchQuery.value }),
+      attractionService.getManagementList({ 
+        search: searchQuery.value,
+        pageNumber: 1,
+        pageSize: 50 
+      }),
       catalogService.getLocations(),
       catalogService.getCategories()
     ])
