@@ -459,7 +459,7 @@ onMounted(async () => {
             </div>
             <div class="space-y-1">
               <BaseInput label="Válido Desde" type="date" v-model="templateForm.validFrom"
-                @change="if (templateForm.validTo && templateForm.validFrom > templateForm.validTo) templateForm.validTo = ''"
+                @change="templateForm.validTo = (templateForm.validTo && templateForm.validFrom > templateForm.validTo) ? '' : templateForm.validTo"
               />
             </div>
             <BaseInput label="Válido Hasta" type="date" v-model="templateForm.validTo" :min="templateForm.validFrom" />
@@ -535,7 +535,7 @@ onMounted(async () => {
               <div class="w-40">
                 <label class="text-xs font-bold text-text-secondary ml-1">Desde</label>
                 <input type="date" v-model="slotFilters.fromDate" class="w-full bg-background border border-border rounded-lg py-2 px-3 text-sm"
-                  @change="if (slotFilters.toDate && slotFilters.fromDate > slotFilters.toDate) slotFilters.toDate = slotFilters.fromDate"
+                  @change="slotFilters.toDate = (slotFilters.toDate && slotFilters.fromDate > slotFilters.toDate) ? slotFilters.fromDate : slotFilters.toDate"
                 />
               </div>
               <div class="w-40">
