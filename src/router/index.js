@@ -28,6 +28,11 @@ const routes = [
         component: () => import('@/pages/admin/ManageModalities.vue')
       },
       {
+        path: 'attractions/:id/edit',
+        name: 'EditAttraction',
+        component: () => import('@/pages/admin/EditAttraction.vue')
+      },
+      {
         path: 'clients',
         name: 'ManageClients',
         component: () => import('@/pages/admin/ManageClients.vue')
@@ -114,6 +119,12 @@ const routes = [
         path: 'my-bookings',
         name: 'MyBookings',
         component: () => import('@/pages/public/MyBookings.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'checkout',
+        name: 'Checkout',
+        component: () => import('@/pages/public/CheckoutPage.vue'),
         meta: { requiresAuth: true }
       }
     ]

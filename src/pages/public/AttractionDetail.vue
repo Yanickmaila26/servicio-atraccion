@@ -17,6 +17,7 @@ import {
   ChatBubbleLeftRightIcon
 } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
+import { useCheckoutStore } from '@/stores/checkout'
 
 const route = useRoute()
 const router = useRouter()
@@ -176,16 +177,32 @@ function openPaymentForm() {
     errors.value.tickets = `Esta experiencia requiere un mínimo de ${selectedProduct.value.minParticipants} participantes.`
     return
   }
+
   // Build passenger forms per tier
-  passengerForms.value = selectedProduct.value.priceTiers
+  const forms = []
+  selectedProduct.value.priceTiers
     .filter(t => (ticketCounts.value[t.id] || 0) > 0)
-    .map(t => ({
-      tierId: t.id,
-      tierName: t.categoryName || 'Ticket',
-      qty: ticketCounts.value[t.id],
-      firstName: '', lastName: '', docType: 'Pasaporte', docNumber: '', email: ''
-    }))
-  showPaymentForm.value = true
+    .forEach(t => {
+      const qty = ticketCounts.value[t.id]
+      if (selectedProduct.value.isPrivate) {
+        for (let i = 0; i < qty; i++) {
+          forms.push({ tierId: t.id, tierName: `${t.categoryName || 'Ticket'} #${i + 1}`, qty: 1, firstName: '', lastName: '', docType: 'Pasaporte', docNumber: '', email: i === 0 ? '' : 'n/a' })
+        }
+      } else {
+        forms.push({ tierId: t.id, tierName: t.categoryName || 'Ticket', qty, firstName: '', lastName: '', docType: 'Pasaporte', docNumber: '', email: forms.length === 0 ? '' : 'n/a' })
+      }
+    })
+
+  // Save to checkout store and navigate
+  const checkoutStore = useCheckoutStore()
+  checkoutStore.set({
+    attraction: attraction.value,
+    product: selectedProduct.value,
+    slot: selectedSlot.value,
+    cartItems: cartItems.value,
+    passengerForms: forms
+  })
+  router.push('/checkout')
 }
 
 // ── Validation helpers ──────────────────────────────────────────────────────
@@ -592,7 +609,7 @@ onUnmounted(() => { if (leafletMap) { leafletMap.remove(); leafletMap = null } }
                     <div class="flex flex-wrap gap-4 text-xs font-semibold text-text-secondary mt-2">
                       <span class="flex items-center gap-1"><ClockIcon class="h-3.5 w-3.5" />{{ prod.durationDescription || (prod.durationMinutes ? `${prod.durationMinutes} min` : 'Consultar') }}</span>
                       <span v-if="prod.maxGroupSize" class="flex items-center gap-1"><UserGroupIcon class="h-3.5 w-3.5" />Máx {{ prod.maxGroupSize }} personas</span>
-                      <span v-if="prod.minParticipants > 1" class="flex items-center gap-1 text-primary"><UserIcon class="h-3.5 w-3.5" />Mínimo {{ prod.minParticipants }} personas</span>
+                      <span v-if="prod.minParticipants > 1" class="flex items-center gap-1 text-primary"><UserGroupIcon class="h-3.5 w-3.5" />Mínimo {{ prod.minParticipants }} personas</span>
                     </div>
                   </div>
                   <div class="text-right shrink-0">
@@ -626,12 +643,19 @@ onUnmounted(() => { if (leafletMap) { leafletMap.remove(); leafletMap = null } }
                         </div>
 
                         <!-- Time Selection -->
-                        <div v-if="selectedDate" class="grid grid-cols-3 sm:grid-cols-4 gap-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <div v-if="selectedDate" class="grid grid-cols-2 sm:grid-cols-4 gap-2 animate-in fade-in slide-in-from-top-1 duration-300">
                           <button v-for="slot in groupedSlots.find(g => g.date === selectedDate).slots" :key="slot.id"
                             @click="selectedSlot = slot; clearError('slot')"
-                            class="p-2 rounded-lg border text-sm text-center transition-all"
-                            :class="selectedSlot?.id === slot.id ? 'bg-primary border-primary text-white font-bold shadow-sm' : 'bg-surface border-border text-text-primary hover:border-primary/50'">
-                            {{ slot.startTime }}
+                            :disabled="slot.capacityAvailable === 0"
+                            class="p-2 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1"
+                            :class="[
+                              selectedSlot?.id === slot.id ? 'bg-primary border-primary text-white font-bold shadow-sm' : 'bg-surface border-border text-text-primary hover:border-primary/50',
+                              slot.capacityAvailable === 0 ? 'opacity-40 grayscale cursor-not-allowed border-dashed bg-gray-50 text-text-secondary' : ''
+                            ]">
+                            <div class="text-sm">{{ slot.startTime.substring(0,5) }}</div>
+                            <div class="text-[10px] font-black uppercase tracking-tight" :class="selectedSlot?.id === slot.id ? 'text-white/90' : (slot.capacityAvailable < 5 ? 'text-red-500' : 'text-green-600')">
+                              {{ slot.capacityAvailable > 0 ? `${slot.capacityAvailable} libres` : 'Agotado' }}
+                            </div>
                           </button>
                         </div>
                         <div v-else class="text-xs text-text-secondary italic text-center py-2 bg-surface rounded-xl border border-dashed border-border">

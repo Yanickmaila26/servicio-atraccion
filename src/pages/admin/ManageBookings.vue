@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import bookingService from '@/services/bookings'
 import BaseButton from '@/components/common/BaseButton.vue'
+import BaseModal from '@/components/common/BaseModal.vue'
 import { TicketIcon, MagnifyingGlassIcon, ArrowPathIcon, MapPinIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
 
 import Swal from 'sweetalert2'
@@ -10,6 +11,13 @@ const bookings = ref([])
 const loading = ref(true)
 const searchQuery = ref('')
 const expandedAttractions = ref([])
+const showDetailModal = ref(false)
+const selectedBooking = ref(null)
+
+const openDetail = (booking) => {
+  selectedBooking.value = booking
+  showDetailModal.value = true
+}
 
 const fetchBookings = async () => {
   loading.value = true
@@ -184,7 +192,7 @@ onMounted(fetchBookings)
             <thead class="bg-background text-xs font-bold text-text-secondary uppercase border-b border-border">
               <tr>
                 <th class="px-6 py-4">PNR / Código</th>
-                <th class="px-6 py-4">Cliente (Requiere API)</th>
+                <th class="px-6 py-4">Cliente</th>
                 <th class="px-6 py-4 text-center">Fecha del Tour</th>
                 <th class="px-6 py-4 text-right">Total Pagado</th>
                 <th class="px-6 py-4 text-center">Estado</th>
@@ -213,13 +221,22 @@ onMounted(fetchBookings)
                   </span>
                 </td>
                 <td class="px-6 py-4 text-center">
-                  <button 
-                    v-if="canCancelBooking(booking)" 
-                    @click="cancelBooking(booking)" 
-                    class="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors border border-red-100"
-                  >
-                    Cancelar
-                  </button>
+                  <div class="flex items-center justify-center gap-2">
+                    <button 
+                      @click="openDetail(booking)"
+                      class="text-xs font-bold text-primary hover:text-primary-dark bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors border border-primary/10"
+                      title="Ver Detalles"
+                    >
+                      Detalles
+                    </button>
+                    <button 
+                      v-if="canCancelBooking(booking)" 
+                      @click="cancelBooking(booking)" 
+                      class="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors border border-red-100"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -227,5 +244,112 @@ onMounted(fetchBookings)
         </div>
       </div>
     </div>
+
+    <!-- Detail Modal -->
+    <BaseModal :show="showDetailModal" title="Detalle de la Reserva" @close="showDetailModal = false" size="xl">
+      <div v-if="selectedBooking" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-4">
+            <h3 class="text-sm font-black uppercase text-text-secondary border-b border-border pb-2">Información General</h3>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <div class="text-text-secondary text-xs">PNR / Código</div>
+                <div class="font-bold text-primary font-mono text-base">{{ selectedBooking.pnrCode || selectedBooking.pnr }}</div>
+              </div>
+              <div>
+                <div class="text-text-secondary text-xs">Estado</div>
+                <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border mt-1" :class="getStatusClass(selectedBooking.statusName || selectedBooking.status)">
+                  {{ selectedBooking.statusName || selectedBooking.status }}
+                </span>
+              </div>
+              <div>
+                <div class="text-text-secondary text-xs">Atracción</div>
+                <div class="font-bold text-text-primary">{{ selectedBooking.attractionName }}</div>
+              </div>
+              <div>
+                <div class="text-text-secondary text-xs">Modalidad</div>
+                <div class="font-bold text-text-primary">{{ selectedBooking.productTitle }}</div>
+              </div>
+              <div>
+                <div class="text-text-secondary text-xs">Fecha del Tour</div>
+                <div class="font-bold text-text-primary">{{ new Date(selectedBooking.slotDate).toLocaleDateString() }}</div>
+              </div>
+              <div>
+                <div class="text-text-secondary text-xs">Hora de Inicio</div>
+                <div class="font-bold text-text-primary">{{ selectedBooking.slotStartTime }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <h3 class="text-sm font-black uppercase text-text-secondary border-b border-border pb-2">Cliente / Contacto</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-text-secondary">Nombre:</span>
+                <span class="font-bold text-text-primary">{{ selectedBooking.clientName || 'N/A' }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-text-secondary">Email:</span>
+                <span class="font-bold text-text-primary">{{ selectedBooking.clientEmail || selectedBooking.userEmail || 'N/A' }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-text-secondary">Contacto Reserva:</span>
+                <span class="font-bold text-text-primary">{{ selectedBooking.contactName || 'N/A' }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-text-secondary">Email Contacto:</span>
+                <span class="font-bold text-text-primary">{{ selectedBooking.contactEmail || 'N/A' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-sm font-black uppercase text-text-secondary border-b border-border pb-2">Desglose de Pasajeros</h3>
+          <div class="bg-background rounded-2xl border border-border overflow-hidden">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-surface font-bold text-text-secondary text-xs uppercase border-b border-border">
+                <tr>
+                  <th class="px-4 py-3">Nombre</th>
+                  <th class="px-4 py-3">Categoría</th>
+                  <th class="px-4 py-3 text-center">Documento</th>
+                  <th class="px-4 py-3 text-right">Cantidad</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-border">
+                <tr v-for="(detail, idx) in selectedBooking.details" :key="idx" class="hover:bg-surface/50 transition-colors">
+                  <td class="px-4 py-3 font-medium text-text-primary">{{ detail.firstName }} {{ detail.lastName }}</td>
+                  <td class="px-4 py-3">{{ detail.priceTierLabel || 'Ticket' }}</td>
+                  <td class="px-4 py-3 text-center text-xs text-text-secondary">
+                    {{ detail.documentType }}: {{ detail.documentNumber }}
+                  </td>
+                  <td class="px-4 py-3 text-right font-bold">{{ detail.quantity }}</td>
+                </tr>
+              </tbody>
+              <tfoot class="bg-surface/30">
+                <tr>
+                  <td colspan="3" class="px-4 py-3 text-right font-black text-text-secondary">Total Pasajeros:</td>
+                  <td class="px-4 py-3 text-right font-black text-primary text-lg">{{ selectedBooking.totalPassengers }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <div v-if="selectedBooking.statusName?.toLowerCase() === 'cancelada'" class="p-4 bg-red-50 border border-red-200 rounded-2xl">
+          <h4 class="text-xs font-black text-red-700 uppercase mb-1">Información de Cancelación</h4>
+          <div class="text-sm text-red-600">
+            <span class="font-bold">Motivo:</span> {{ selectedBooking.cancelReason || 'No especificado' }}
+          </div>
+          <div class="text-xs text-red-500 mt-1">
+            Fecha: {{ new Date(selectedBooking.cancelledAt).toLocaleString() }}
+          </div>
+        </div>
+
+        <div class="flex justify-end pt-4 border-t border-border">
+          <BaseButton @click="showDetailModal = false">Cerrar</BaseButton>
+        </div>
+      </div>
+    </BaseModal>
   </div>
 </template>

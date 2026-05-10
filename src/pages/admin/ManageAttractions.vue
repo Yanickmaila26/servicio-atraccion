@@ -14,21 +14,9 @@ const router = useRouter()
 const attractions = ref([])
 const locations = ref([])
 const categories = ref([])
+// No more local modal state for editing, using a separate page now.
 const loading = ref(true)
 const searchQuery = ref('')
-
-// Modal state
-const showEditModal = ref(false)
-const editLoading = ref(false)
-const editAttraction = ref({
-  id: '',
-  name: '',
-  slug: '',
-  descriptionShort: '',
-  locationId: '',
-  subcategoryId: '',
-  difficultyLevel: 'moderate'
-})
 
 const fetchData = async () => {
   loading.value = true
@@ -50,29 +38,7 @@ const fetchData = async () => {
 
 
 
-const handleUpdate = async () => {
-  editLoading.value = true
-  try {
-    if (!editAttraction.value.slug) {
-      editAttraction.value.slug = editAttraction.value.name.toLowerCase().replace(/ /g, '-')
-    }
-    await attractionService.update(editAttraction.value.id, editAttraction.value)
-    showEditModal.value = false
-    await fetchData()
-    Swal.fire({
-      icon: 'success',
-      title: 'Atracción Actualizada',
-      toast: true,
-      position: 'top-end',
-      showConfirmButton: false,
-      timer: 3000
-    })
-  } catch (error) {
-    Swal.fire('Error', error.response?.data?.message || error.message, 'error')
-  } finally {
-    editLoading.value = false
-  }
-}
+// handleUpdate was removed in favor of EditAttraction.vue page logic.
 
 const toggleStatus = async (attraction) => {
   try {
@@ -137,17 +103,7 @@ const handleDelete = async (attraction) => {
 }
 
 const handleEdit = (attraction) => {
-  // Rellenar datos
-  editAttraction.value = {
-    id: attraction.id,
-    name: attraction.name || '',
-    slug: attraction.slug || '',
-    descriptionShort: attraction.descriptionShort || '',
-    locationId: attraction.locationId || '',
-    subcategoryId: attraction.subcategoryId || '',
-    difficultyLevel: attraction.difficultyLevel || 'moderate'
-  }
-  showEditModal.value = true
+  router.push(`/admin/attractions/${attraction.id}/edit`)
 }
 
 const handleViewModalities = (attraction) => {
@@ -208,52 +164,6 @@ onMounted(fetchData)
       <MapPinIcon class="h-12 w-12 mx-auto text-text-secondary/30 mb-4" />
       <p class="text-text-secondary italic">No se encontraron atracciones.</p>
     </div>
-
-
-
-    <!-- Edit Modal -->
-    <BaseModal :show="showEditModal" title="Editar Atracción" @close="showEditModal = false">
-      <form @submit.prevent="handleUpdate" class="space-y-6">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <BaseInput label="Nombre de la Atracción" v-model="editAttraction.name" required />
-          <BaseInput label="URL Amigable (Slug)" v-model="editAttraction.slug" placeholder="ej: tour-volcan" />
-        </div>
-
-        <BaseInput label="Descripción Corta" v-model="editAttraction.descriptionShort" required />
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-1.5">
-            <label class="text-sm font-semibold text-text-primary ml-1">Ubicación</label>
-            <select v-model="editAttraction.locationId" class="w-full bg-surface border border-border rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none">
-              <option value="">Seleccionar Ubicación</option>
-              <option v-for="loc in locations" :key="loc.id" :value="loc.id">{{ loc.name }}</option>
-            </select>
-          </div>
-          <div class="space-y-1.5">
-            <label class="text-sm font-semibold text-text-primary ml-1">Categoría</label>
-            <select v-model="editAttraction.subcategoryId" class="w-full bg-surface border border-border rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none">
-              <option value="">Seleccionar Categoría</option>
-              <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-1.5">
-            <label class="text-sm font-semibold text-text-primary ml-1">Dificultad</label>
-            <select v-model="editAttraction.difficultyLevel" class="w-full bg-surface border border-border rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none">
-              <option value="easy">Fácil</option>
-              <option value="moderate">Moderado</option>
-              <option value="hard">Difícil</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="flex justify-end gap-3 pt-4">
-          <BaseButton variant="outline" type="button" @click="showEditModal = false">Cancelar</BaseButton>
-          <BaseButton type="submit" :loading="editLoading">Actualizar Atracción</BaseButton>
-        </div>
-      </form>
-    </BaseModal>
+    <!-- Edit Modal was removed. Redirecting to EditAttraction.vue instead. -->
   </div>
 </template>

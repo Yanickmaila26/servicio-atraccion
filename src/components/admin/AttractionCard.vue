@@ -24,7 +24,7 @@ const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active', 'v
         @click.stop="emit('toggle-status', attraction)"
         class="px-3 py-1.5 text-[10px] font-black uppercase rounded-full shadow-lg backdrop-blur-md transition-all hover:scale-105" 
         :class="attraction.isPublished ? 'bg-green-500 text-white border border-green-400' : 'bg-gray-500 text-white border border-gray-400'"
-        :title="attraction.isPublished ? 'Hacer Borrador' : 'Publicar'"
+        :title="attraction.isPublished ? 'Publicada: visible para los clientes. Clic para poner en borrador.' : 'Borrador: oculta para los clientes. Clic para publicar.'"
       >
         {{ attraction.isPublished ? 'Publicada' : 'Borrador' }}
       </button>
@@ -72,10 +72,18 @@ const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active', 'v
         {{ attraction.descriptionShort || attraction.description || 'No hay una descripción disponible para esta atracción.' }}
       </p>
       
-      <div class="flex items-end justify-between mt-auto pt-4 border-t border-border">
-          <span v-if="isAdmin" class="text-xs font-bold text-text-secondary bg-surface px-2 py-1 rounded border border-border">
-            {{ attraction.products?.length || 0 }} Modalidades
-          </span>
+        <div class="flex items-end justify-between mt-auto pt-4 border-t border-border">
+          <button 
+            v-if="isAdmin" 
+            @click.stop="emit('view-modalities', attraction)"
+            class="text-[10px] font-black uppercase px-2 py-1 rounded border transition-all hover:shadow-sm"
+            :class="(attraction.products?.length || 0) > 0 
+              ? 'bg-surface text-text-secondary border-border hover:bg-primary/5 hover:text-primary hover:border-primary/20' 
+              : 'bg-primary/5 text-primary border-primary/30 hover:bg-primary hover:text-white hover:border-primary'"
+          >
+            {{ (attraction.products?.length || 0) }} {{ (attraction.products?.length || 0) === 1 ? 'Modalidad' : 'Modalidades' }}
+            <span v-if="(attraction.products?.length || 0) === 0" class="ml-1">+</span>
+          </button>
           <div v-else class="text-sm font-bold text-primary">
             <template v-if="attraction.startingPrice > 0">
               Desde {{ attraction.currencyCode || 'USD' }} ${{ attraction.startingPrice?.toFixed(2) }}
@@ -87,19 +95,26 @@ const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active', 'v
         </div>
         
         <div v-if="isAdmin" class="flex gap-2 items-center">
-          <!-- Botón Activar/Desactivar -->
-          <button 
-            @click.stop="emit('toggle-active', attraction)"
-            class="transition-colors p-1.5 rounded-md focus:outline-none flex items-center gap-1"
-            :class="attraction.isActive ? 'text-blue-500 hover:bg-blue-50' : 'text-orange-500 hover:bg-orange-50'"
-            :title="attraction.isActive ? 'Desactivar Atracción' : 'Activar Atracción'"
-          >
-            <CheckBadgeIcon v-if="attraction.isActive" class="w-5 h-5" />
-            <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-            </svg>
-            <span class="text-[10px] font-bold uppercase hidden group-hover:inline">{{ attraction.isActive ? 'Activo' : 'Inactivo' }}</span>
-          </button>
+          <!-- Botón Activar/Desactivar Reservas -->
+          <div class="relative group/tooltip">
+            <button 
+              @click.stop="emit('toggle-active', attraction)"
+              class="transition-colors p-1.5 rounded-md focus:outline-none flex items-center gap-1"
+              :class="attraction.isActive ? 'text-blue-500 hover:bg-blue-50' : 'text-orange-500 hover:bg-orange-50'"
+            >
+              <CheckBadgeIcon v-if="attraction.isActive" class="w-5 h-5" />
+              <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+            </button>
+            <!-- Tooltip explicativo -->
+            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-gray-900 text-white text-[10px] rounded-lg p-2 opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-50 text-center">
+              <strong>{{ attraction.isActive ? 'Activo' : 'Inactivo' }}</strong><br>
+              {{ attraction.isActive ? 'Acepta nuevas reservas. Clic para bloquear.' : 'No acepta reservas nuevas. Clic para reactivar.' }}
+              <div class="text-gray-400 text-[9px] mt-1">Diferente a Publicada/Borrador: una atracción puede estar publicada pero no aceptar reservas.</div>
+              <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+            </div>
+          </div>
 
           <button 
             @click.stop="emit('edit', attraction)"

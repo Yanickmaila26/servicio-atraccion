@@ -65,11 +65,43 @@ const removeTime = (idx) => {
 }
 
 const saveSchedule = async () => {
-  if (!templateForm.value.validTo) {
-    return Swal.fire('Atención', 'Debes indicar la fecha de vigencia final.', 'warning')
+  // --- Validaciones ---
+  if (!templateForm.value.validFrom || !templateForm.value.validTo) {
+    return Swal.fire('Atención', 'Debes indicar las fechas de inicio y fin de la vigencia.', 'warning')
+  }
+  if (templateForm.value.validFrom > templateForm.value.validTo) {
+    return Swal.fire('Atención', 'La fecha “Válido Desde” no puede ser posterior a “Válido Hasta”.', 'warning')
+  }
+  if (!templateForm.value.defaultCapacity || templateForm.value.defaultCapacity < 1) {
+    return Swal.fire('Atención', 'La capacidad total debe ser mayor a 0.', 'warning')
+  }
+  // Validar contra el maxGroupSize de la modalidad seleccionada
+  const maxPax = selectedProduct.value?.maxGroupSize
+  if (maxPax && templateForm.value.defaultCapacity < maxPax) {
+    return Swal.fire(
+      'Capacidad insuficiente',
+      `La capacidad total (${templateForm.value.defaultCapacity} cupos) no puede ser menor al máximo de participantes por reserva de esta modalidad (${maxPax} pax). Ajusta la capacidad a al menos ${maxPax}.`,
+      'warning'
+    )
   }
   if (templateForm.value.times.length === 0) {
     return Swal.fire('Atención', 'Agrega al menos un horario de salida.', 'warning')
+  }
+  // Validar capacidades específicas de cada horario
+  for (const t of templateForm.value.times) {
+    if (t.capacityOverride !== null && t.capacityOverride !== undefined && t.capacityOverride !== '') {
+      const cap = Number(t.capacityOverride)
+      if (cap < 1) {
+        return Swal.fire('Atención', 'La capacidad específica de un horario debe ser mayor a 0.', 'warning')
+      }
+      if (maxPax && cap < maxPax) {
+        return Swal.fire(
+          'Capacidad específica insuficiente',
+          `Una de las capacidades específicas (${cap}) es menor al máximo de pax de la modalidad (${maxPax}).`,
+          'warning'
+        )
+      }
+    }
   }
 
   loading.value = true
@@ -419,9 +451,18 @@ onMounted(async () => {
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <BaseInput label="Nombre de la Configuración" v-model="templateForm.name" placeholder="Ej: Horario Regular" />
-            <BaseInput label="Capacidad Total por Horario / Cupos" type="number" v-model.number="templateForm.defaultCapacity" />
-            <BaseInput label="Válido Desde" type="date" v-model="templateForm.validFrom" />
-            <BaseInput label="Válido Hasta" type="date" v-model="templateForm.validTo" />
+            <div class="space-y-1">
+              <BaseInput label="Capacidad Total por Horario / Cupos" type="number" v-model.number="templateForm.defaultCapacity" :min="selectedProduct?.maxGroupSize || 1" />
+              <p class="text-[10px] text-text-secondary px-1 italic">
+                Mín. {{ selectedProduct?.maxGroupSize || 1 }} cupos (igual al máx. pax de la modalidad)
+              </p>
+            </div>
+            <div class="space-y-1">
+              <BaseInput label="Válido Desde" type="date" v-model="templateForm.validFrom"
+                @change="if (templateForm.validTo && templateForm.validFrom > templateForm.validTo) templateForm.validTo = ''"
+              />
+            </div>
+            <BaseInput label="Válido Hasta" type="date" v-model="templateForm.validTo" :min="templateForm.validFrom" />
           </div>
 
           <div class="space-y-3 mb-6">
@@ -463,8 +504,9 @@ onMounted(async () => {
                     type="number" 
                     v-model.number="time.capacityOverride" 
                     placeholder="Auto"
+                    min="1"
                     class="bg-transparent border border-border rounded-lg px-2 py-1 text-sm font-bold outline-none w-20 focus:border-primary text-center placeholder-gray-400" 
-                    title="Si este horario usa un vehículo distinto, indica aquí sus cupos"
+                    :title="`Mínimo ${selectedProduct?.maxGroupSize || 1} cupos. Si no se indica, se usa la capacidad total del patrón.`"
                   />
                   <button @click.prevent="removeTime(tIdx)" class="text-red-400 hover:text-red-600 transition-colors ml-2 p-1 bg-red-50 hover:bg-red-100 rounded-lg">
                     <TrashIcon class="h-5 w-5" />
@@ -492,11 +534,13 @@ onMounted(async () => {
             <div class="flex flex-wrap items-end gap-4">
               <div class="w-40">
                 <label class="text-xs font-bold text-text-secondary ml-1">Desde</label>
-                <input type="date" v-model="slotFilters.fromDate" class="w-full bg-background border border-border rounded-lg py-2 px-3 text-sm" />
+                <input type="date" v-model="slotFilters.fromDate" class="w-full bg-background border border-border rounded-lg py-2 px-3 text-sm"
+                  @change="if (slotFilters.toDate && slotFilters.fromDate > slotFilters.toDate) slotFilters.toDate = slotFilters.fromDate"
+                />
               </div>
               <div class="w-40">
                 <label class="text-xs font-bold text-text-secondary ml-1">Hasta</label>
-                <input type="date" v-model="slotFilters.toDate" class="w-full bg-background border border-border rounded-lg py-2 px-3 text-sm" />
+                <input type="date" v-model="slotFilters.toDate" :min="slotFilters.fromDate" class="w-full bg-background border border-border rounded-lg py-2 px-3 text-sm" />
               </div>
               <div class="w-32">
                 <label class="text-xs font-bold text-text-secondary ml-1">Hora (Opcional)</label>
@@ -562,7 +606,8 @@ onMounted(async () => {
                       <th class="py-2 px-6 w-10"></th>
                       <th class="py-2 px-4 font-bold">Hora</th>
                       <th class="py-2 px-4 font-bold text-center">Cap. Total</th>
-                      <th class="py-2 px-4 font-bold text-center">Disponibles</th>
+                      <th class="py-2 px-4 font-bold text-center text-blue-600">Vendidos</th>
+                      <th class="py-2 px-4 font-bold text-center text-green-600">Disponibles</th>
                       <th class="py-2 px-4 font-bold">Estado</th>
                       <th class="py-2 px-6 text-right">Acciones</th>
                     </tr>
@@ -582,7 +627,12 @@ onMounted(async () => {
                         <ClockIcon class="h-4 w-4" /> {{ slot.startTime?.substring(0,5) }}
                       </td>
                       <td class="py-3 px-4 text-center">{{ slot.capacityTotal }}</td>
-                      <td class="py-3 px-4 text-center font-bold" :class="slot.capacityAvailable === 0 ? 'text-red-500' : 'text-green-600'">
+                      <td class="py-3 px-4 text-center">
+                        <span class="font-bold" :class="slot.capacityTotal - slot.capacityAvailable > 0 ? 'text-blue-600' : 'text-text-secondary/40'">
+                          {{ slot.capacityTotal - slot.capacityAvailable }}
+                        </span>
+                      </td>
+                      <td class="py-3 px-4 text-center font-black" :class="slot.capacityAvailable === 0 ? 'text-red-500' : 'text-green-600'">
                         {{ slot.capacityAvailable }}
                       </td>
                       <td class="py-3 px-4">

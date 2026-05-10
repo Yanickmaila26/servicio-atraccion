@@ -145,6 +145,17 @@ const toggleActive = async (product) => {
   }
 }
 
+import { watch } from 'vue'
+watch(() => form.value.cancelPolicyHours, (val) => {
+  if (val === 0) {
+    form.value.cancelPolicyText = 'No reembolsable'
+  } else if (val === 24) {
+    form.value.cancelPolicyText = 'Cancelación gratuita hasta 24 horas antes'
+  } else {
+    form.value.cancelPolicyText = `Cancelación gratuita hasta ${val} horas antes`
+  }
+})
+
 onMounted(fetchData)
 </script>
 
@@ -230,8 +241,14 @@ onMounted(fetchData)
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <BaseInput label="Duración (min)" type="number" v-model="form.durationMinutes" required />
           <BaseInput label="Duración (texto)" v-model="form.durationDescription" placeholder="ej: 1h 30m" />
-          <BaseInput label="Min. Pax" type="number" v-model="form.minParticipants" required />
-          <BaseInput label="Max. Pax" type="number" v-model="form.maxGroupSize" required />
+          <div class="space-y-1">
+            <BaseInput label="Min. Pax" type="number" v-model="form.minParticipants" required />
+            <p class="text-[10px] text-text-secondary px-1 italic">Mínimo de personas para operar</p>
+          </div>
+          <div class="space-y-1">
+            <BaseInput label="Max. Pax" type="number" v-model="form.maxGroupSize" required />
+            <p class="text-[10px] text-text-secondary px-1 italic">Máximo por grupo/reserva</p>
+          </div>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
