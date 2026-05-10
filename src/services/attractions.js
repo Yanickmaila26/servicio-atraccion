@@ -14,6 +14,10 @@ export default {
     return api.get(`/Attraction/${slug}`, { params: { requestedLangId: langId } })
   },
 
+  getById(id) {
+    return api.get(`/Attraction/${id}`)
+  },
+
   // Administrativos
   getManagementList(params) {
     return api.get('/Attraction/management', { params })

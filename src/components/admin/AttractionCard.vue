@@ -77,12 +77,12 @@ const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active', 'v
             v-if="isAdmin" 
             @click.stop="emit('view-modalities', attraction)"
             class="text-[10px] font-black uppercase px-2 py-1 rounded border transition-all hover:shadow-sm"
-            :class="(attraction.products?.length || 0) > 0 
+            :class="(attraction.products?.length || attraction.productCount || attraction.modalityCount || 0) > 0 
               ? 'bg-surface text-text-secondary border-border hover:bg-primary/5 hover:text-primary hover:border-primary/20' 
               : 'bg-primary/5 text-primary border-primary/30 hover:bg-primary hover:text-white hover:border-primary'"
           >
-            {{ (attraction.products?.length || 0) }} {{ (attraction.products?.length || 0) === 1 ? 'Modalidad' : 'Modalidades' }}
-            <span v-if="(attraction.products?.length || 0) === 0" class="ml-1">+</span>
+            {{ (attraction.products?.length || attraction.productCount || attraction.modalityCount || 0) }} {{ (attraction.products?.length || attraction.productCount || attraction.modalityCount || 0) === 1 ? 'Modalidad' : 'Modalidades' }}
+            <span v-if="(attraction.products?.length || attraction.productCount || attraction.modalityCount || 0) === 0" class="ml-1">+</span>
           </button>
           <div v-else class="text-sm font-bold text-primary">
             <template v-if="attraction.startingPrice > 0">
@@ -107,12 +107,14 @@ const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active', 'v
                 <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
               </svg>
             </button>
-            <!-- Tooltip explicativo -->
-            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-gray-900 text-white text-[10px] rounded-lg p-2 opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-50 text-center">
-              <strong>{{ attraction.isActive ? 'Activo' : 'Inactivo' }}</strong><br>
-              {{ attraction.isActive ? 'Acepta nuevas reservas. Clic para bloquear.' : 'No acepta reservas nuevas. Clic para reactivar.' }}
-              <div class="text-gray-400 text-[9px] mt-1">Diferente a Publicada/Borrador: una atracción puede estar publicada pero no aceptar reservas.</div>
-              <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+            <!-- Tooltip explicativo (Ajustado para no cortarse) -->
+            <div class="absolute bottom-full right-0 mb-2 w-56 bg-gray-900 text-white text-[10px] rounded-lg p-2 opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-50 text-center shadow-xl">
+              <strong class="text-xs">{{ attraction.isActive ? 'Activo' : 'Inactivo' }}</strong><br>
+              <p class="mt-1">{{ attraction.isActive ? 'Acepta nuevas reservas. Clic para bloquear.' : 'No acepta reservas nuevas. Clic para reactivar.' }}</p>
+              <div class="text-gray-400 text-[9px] mt-2 pt-2 border-t border-white/10 italic">
+                Nota: Diferente a Publicada/Borrador. Puede estar publicada pero cerrada a reservas.
+              </div>
+              <div class="absolute top-full right-4 border-4 border-transparent border-t-gray-900"></div>
             </div>
           </div>
 

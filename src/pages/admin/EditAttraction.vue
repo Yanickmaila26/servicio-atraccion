@@ -25,6 +25,7 @@ const locations = ref([])
 const categories = ref([])
 const subcategories = ref([])
 const availableTags = ref([])
+const availableInclusions = ref([])
 
 // Form
 const form = reactive({
@@ -38,6 +39,7 @@ const form = reactive({
   locationId: '',
   subcategoryId: '',
   tags: [],
+  inclusions: [],
   itinerary: { overview: '', stops: [] }
 })
 
@@ -69,6 +71,12 @@ function toggleTag(tagId) {
   else form.tags.push(tagId)
 }
 
+function toggleInclusion(inclusionId) {
+  const idx = form.inclusions.indexOf(inclusionId)
+  if (idx > -1) form.inclusions.splice(idx, 1)
+  else form.inclusions.push(inclusionId)
+}
+
 function addStop() {
   form.itinerary.stops.push({
     name: '', description: '', stayTimeMinutes: 30,
@@ -79,15 +87,17 @@ function removeStop(idx) { form.itinerary.stops.splice(idx, 1) }
 
 onMounted(async () => {
   try {
-    const [attrData, locData, catData, tagData] = await Promise.all([
-      attractionService.getById ? attractionService.getById(attractionId) : attractionService.getBySlug(attractionId),
+    const [attrData, locData, catData, tagData, incData] = await Promise.all([
+      attractionService.getById(attractionId),
       catalogService.getLocations(),
       catalogService.getCategories(),
-      catalogService.getTags()
+      catalogService.getTags(),
+      catalogService.getInclusions()
     ])
     locations.value = locData || []
     categories.value = catData || []
     availableTags.value = tagData || []
+    availableInclusions.value = incData || []
 
     // Populate form
     const a = attrData
@@ -101,18 +111,34 @@ onMounted(async () => {
     form.locationId = a.locationId || ''
     form.subcategoryId = a.subcategoryId || ''
     form.tags = (a.tags || []).map(t => t.id)
+    form.inclusions = (a.inclusions || []).map(i => i.id)
     form.itinerary = {
       overview: a.itinerary?.overview || '',
       stops: (a.itinerary?.stops || []).map(s => ({ ...s }))
     }
 
-    // Load subcategories if category is known
+    // Load subcategories and location state
     if (a.categoryId) {
       selectedCategoryId.value = a.categoryId
     }
+    
+    // Attempt to reverse engineer location selection (country/state/city)
+    // This is optional but nice for UX
+    if (a.locationId) {
+       // Search for country/state containing this city
+       countries.value.forEach(c => {
+         c.children?.forEach(s => {
+           if (s.children?.some(city => city.id === a.locationId)) {
+             selectedCountryId.value = c.id
+             selectedStateId.value = s.id
+           }
+         })
+       })
+    }
+
   } catch (e) {
     console.error(e)
-    Swal.fire('Error', 'No se pudo cargar la atracción.', 'error')
+    Swal.fire('Error', 'No se pudo cargar la atracción (ID: ' + attractionId + ')', 'error')
   } finally {
     loading.value = false
   }
@@ -134,6 +160,7 @@ async function handleSave() {
       locationId: form.locationId || null,
       subcategoryId: form.subcategoryId || null,
       tags: form.tags,
+      inclusions: form.inclusions,
       itinerary: (form.itinerary.overview || form.itinerary.stops.length > 0)
         ? {
             languageId: 1,
@@ -156,6 +183,7 @@ const tabs = [
   { key: 'general', label: 'General', icon: 'CheckBadgeIcon' },
   { key: 'location', label: 'Ubicación', icon: 'GlobeAltIcon' },
   { key: 'tags', label: 'Tags', icon: 'TagIcon' },
+  { key: 'inclusions', label: 'Inclusiones', icon: 'CheckCircleIcon' },
   { key: 'itinerary', label: 'Itinerario', icon: 'ListBulletIcon' },
 ]
 </script>
@@ -296,6 +324,34 @@ const tabs = [
           </button>
         </div>
         <p class="text-xs text-text-secondary italic">{{ form.tags.length }} etiqueta(s) seleccionada(s)</p>
+      </div>
+
+      <!-- Tab: Inclusions -->
+      <div v-if="activeTab === 'inclusions'" class="bg-surface border border-border rounded-3xl p-6 space-y-5">
+        <h2 class="font-black text-text-primary text-lg">Inclusiones y Exclusiones</h2>
+        <p class="text-text-secondary text-sm">Selecciona los elementos que están incluidos en el servicio base.</p>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button v-for="inc in availableInclusions" :key="inc.id"
+            @click="toggleInclusion(inc.id)"
+            class="flex items-center gap-3 p-4 rounded-2xl border transition-all text-left"
+            :class="form.inclusions.includes(inc.id)
+              ? 'bg-primary/5 border-primary text-primary'
+              : 'bg-background border-border text-text-secondary hover:border-primary/40'">
+            <div class="w-5 h-5 rounded-md border flex items-center justify-center shrink-0"
+              :class="form.inclusions.includes(inc.id) ? 'bg-primary border-primary' : 'bg-surface border-border'">
+              <PlusIcon v-if="!form.inclusions.includes(inc.id)" class="h-3 w-3" />
+              <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3 text-white">
+                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <span class="font-bold text-sm">{{ inc.name }}</span>
+          </button>
+        </div>
+        
+        <p v-if="availableInclusions.length === 0" class="py-10 text-center text-text-secondary italic border border-dashed border-border rounded-2xl">
+          No hay inclusiones configuradas en el catálogo global.
+        </p>
       </div>
 
       <!-- Tab: Itinerary Stops -->
