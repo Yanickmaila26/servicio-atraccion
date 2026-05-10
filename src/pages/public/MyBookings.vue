@@ -127,8 +127,8 @@ const canCancelBooking = (booking) => {
 
 const cancelBookingGroup = async (booking) => {
   const result = await Swal.fire({
-    title: '¿Cancelar Reserva?',
-    text: `¿Estás seguro de cancelar esta reserva? Se cancelarán los PNR: ${booking.pnrList.join(', ')}.`,
+    title: '¿Confirmar Cancelación?',
+    text: `¿Estás seguro de que deseas cancelar tu reserva de ${booking.totalPassengers} tickets para "${booking.attractionName}" el día ${booking.slotDate}? Esta acción no se puede deshacer.`,
     icon: 'warning',
     showCancelButton: true,
     confirmButtonColor: '#ef4444',

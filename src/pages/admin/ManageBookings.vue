@@ -86,8 +86,8 @@ const canCancelBooking = (booking) => {
 
 const cancelBooking = async (booking) => {
   const result = await Swal.fire({
-    title: '¿Cancelar Reserva?',
-    text: `¿Estás seguro de cancelar la reserva PNR: ${booking.pnrCode || booking.pnr}?`,
+    title: 'Confirmar Cancelación Administrativa',
+    text: `¿Estás seguro de cancelar la reserva de ${booking.totalPassengers} tickets para la atracción "${booking.attractionName}"?`,
     icon: 'warning',
     input: 'text',
     inputPlaceholder: 'Motivo de cancelación (opcional)',

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import attractionService from '@/services/attractions'
 import bookingService from '@/services/bookings'
@@ -391,24 +391,34 @@ async function initMap() {
 
 
 
-onMounted(async () => {
+async function loadAttraction() {
   loading.value = true
   reviewsLoading.value = true
   try {
+    const slug = route.params.slug
     const [data, revData] = await Promise.all([
-      attractionService.getBySlug(route.params.slug),
-      reviewService.getByAttraction(route.params.slug)
+      attractionService.getBySlug(slug),
+      reviewService.getByAttraction(slug)
     ])
     attraction.value = data
     reviews.value = revData.items || []
+    
+    loading.value = false
+    reviewsLoading.value = false
+    
     await nextTick()
     await initMap()
   } catch (e) {
     console.error(e)
-  } finally {
     loading.value = false
     reviewsLoading.value = false
   }
+}
+
+onMounted(loadAttraction)
+
+watch(() => route.params.slug, () => {
+  loadAttraction()
 })
 
 onUnmounted(() => { if (leafletMap) { leafletMap.remove(); leafletMap = null } })
