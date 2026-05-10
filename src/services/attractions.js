@@ -15,7 +15,18 @@ export default {
   },
 
   getById(id) {
-    return api.get(`/Attraction/${id}`)
+    // Intentar endpoint PascalCase (común en .NET)
+    return api.get(`/Attraction/${id}`).catch(() => {
+      // Si falla, intentar endpoint plural minúsculas (según YAML)
+      return api.get(`/atracciones/${id}`)
+    })
+  },
+
+  getManagementDetail(id) {
+    // Endpoint específico de administración si existe
+    return api.get(`/Attraction/management/${id}`).catch(() => {
+       return api.get(`/atracciones/management/${id}`)
+    })
   },
 
   // Administrativos

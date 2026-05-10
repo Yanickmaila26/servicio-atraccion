@@ -88,15 +88,24 @@ function removeStop(idx) { form.itinerary.stops.splice(idx, 1) }
 onMounted(async () => {
   try {
     let a = null
+    // Intento 1: GetById directo (PascalCase) o plural (lowercase)
     try {
       a = await attractionService.getById(attractionId)
     } catch (err) {
-      console.warn('Direct ID fetch failed, trying search fallback...', err)
-      const searchRes = await attractionService.search({ attractionId })
-      a = searchRes.items?.find(item => item.id === attractionId)
+      console.warn('GetById falló, intentando ManagementDetail...', err)
+      // Intento 2: Management Detail
+      try {
+        a = await attractionService.getManagementDetail(attractionId)
+      } catch (err2) {
+        console.warn('ManagementDetail falló, intentando filtrado en lista...', err2)
+        // Intento 3: Buscar en la lista de gestión
+        const managementRes = await attractionService.getManagementList({ pageSize: 100 })
+        const list = managementRes?.items || managementRes?.data || (Array.isArray(managementRes) ? managementRes : [])
+        a = list.find(item => item.id === attractionId)
+      }
     }
     
-    if (!a) throw new Error('Atracción no encontrada')
+    if (!a) throw new Error('Atracción no encontrada con ID: ' + attractionId)
 
     const [locData, catData, tagData, incData] = await Promise.all([
       catalogService.getLocations(),
@@ -126,7 +135,6 @@ onMounted(async () => {
       stops: (a.itinerary?.stops || []).map(s => ({ ...s }))
     }
 
-    // Load subcategories and location state
     if (a.categoryId || a.subcategoryId) {
       selectedCategoryId.value = a.categoryId || ''
     }
@@ -143,7 +151,7 @@ onMounted(async () => {
     }
   } catch (e) {
     console.error(e)
-    Swal.fire('Error', 'No se pudo cargar la atracción (ID: ' + attractionId + '). ' + e.message, 'error')
+    Swal.fire('Error', 'No se pudo cargar la atracción. ' + e.message, 'error')
   } finally {
     loading.value = false
   }
