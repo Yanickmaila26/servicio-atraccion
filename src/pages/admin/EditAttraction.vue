@@ -87,8 +87,18 @@ function removeStop(idx) { form.itinerary.stops.splice(idx, 1) }
 
 onMounted(async () => {
   try {
-    const [attrData, locData, catData, tagData, incData] = await Promise.all([
-      attractionService.getById(attractionId),
+    let a = null
+    try {
+      a = await attractionService.getById(attractionId)
+    } catch (err) {
+      console.warn('Direct ID fetch failed, trying search fallback...', err)
+      const searchRes = await attractionService.search({ attractionId })
+      a = searchRes.items?.find(item => item.id === attractionId)
+    }
+    
+    if (!a) throw new Error('Atracción no encontrada')
+
+    const [locData, catData, tagData, incData] = await Promise.all([
       catalogService.getLocations(),
       catalogService.getCategories(),
       catalogService.getTags(),
@@ -100,7 +110,6 @@ onMounted(async () => {
     availableInclusions.value = incData || []
 
     // Populate form
-    const a = attrData
     form.name = a.name || ''
     form.descriptionShort = a.descriptionShort || ''
     form.descriptionFull = a.descriptionFull || ''
@@ -118,14 +127,11 @@ onMounted(async () => {
     }
 
     // Load subcategories and location state
-    if (a.categoryId) {
-      selectedCategoryId.value = a.categoryId
+    if (a.categoryId || a.subcategoryId) {
+      selectedCategoryId.value = a.categoryId || ''
     }
     
-    // Attempt to reverse engineer location selection (country/state/city)
-    // This is optional but nice for UX
     if (a.locationId) {
-       // Search for country/state containing this city
        countries.value.forEach(c => {
          c.children?.forEach(s => {
            if (s.children?.some(city => city.id === a.locationId)) {
@@ -135,10 +141,9 @@ onMounted(async () => {
          })
        })
     }
-
   } catch (e) {
     console.error(e)
-    Swal.fire('Error', 'No se pudo cargar la atracción (ID: ' + attractionId + ')', 'error')
+    Swal.fire('Error', 'No se pudo cargar la atracción (ID: ' + attractionId + '). ' + e.message, 'error')
   } finally {
     loading.value = false
   }

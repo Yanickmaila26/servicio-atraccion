@@ -16,7 +16,7 @@ const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active', 'v
 </script>
 
 <template>
-  <div class="bg-background rounded-xl border border-border overflow-hidden hover:shadow-soft transition-all duration-300 group flex flex-col h-full relative">
+  <div class="bg-surface rounded-3xl border border-border hover:shadow-2xl transition-all duration-500 group flex flex-col h-full relative">
     
     <!-- Botón de Estado de Publicación (Solo Admin) -->
     <div v-if="isAdmin" class="absolute top-3 right-3 z-10 flex gap-2">
@@ -31,7 +31,7 @@ const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active', 'v
     </div>
 
     <!-- Imagen -->
-    <div class="h-48 overflow-hidden bg-surface relative">
+    <div class="h-48 overflow-hidden rounded-t-3xl bg-gray-100 relative">
       <img 
         v-if="attraction.mainImageUrl || (attraction.media && attraction.media.length > 0)"
         :src="attraction.mainImageUrl || attraction.media[0].url" 
@@ -77,12 +77,12 @@ const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active', 'v
             v-if="isAdmin" 
             @click.stop="emit('view-modalities', attraction)"
             class="text-[10px] font-black uppercase px-2 py-1 rounded border transition-all hover:shadow-sm"
-            :class="(attraction.products?.length || attraction.productCount || attraction.modalityCount || 0) > 0 
+            :class="(attraction.products?.length || attraction.productCount || attraction.modalityCount || attraction.optionsCount || 0) > 0 
               ? 'bg-surface text-text-secondary border-border hover:bg-primary/5 hover:text-primary hover:border-primary/20' 
               : 'bg-primary/5 text-primary border-primary/30 hover:bg-primary hover:text-white hover:border-primary'"
           >
-            {{ (attraction.products?.length || attraction.productCount || attraction.modalityCount || 0) }} {{ (attraction.products?.length || attraction.productCount || attraction.modalityCount || 0) === 1 ? 'Modalidad' : 'Modalidades' }}
-            <span v-if="(attraction.products?.length || attraction.productCount || attraction.modalityCount || 0) === 0" class="ml-1">+</span>
+            {{ (attraction.products?.length || attraction.productCount || attraction.modalityCount || attraction.optionsCount || 0) }} {{ (attraction.products?.length || attraction.productCount || attraction.modalityCount || attraction.optionsCount || 0) === 1 ? 'Modalidad' : 'Modalidades' }}
+            <span v-if="(attraction.products?.length || attraction.productCount || attraction.modalityCount || attraction.optionsCount || 0) === 0" class="ml-1">+</span>
           </button>
           <div v-else class="text-sm font-bold text-primary">
             <template v-if="attraction.startingPrice > 0">
@@ -107,14 +107,14 @@ const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active', 'v
                 <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
               </svg>
             </button>
-            <!-- Tooltip explicativo (Ajustado para no cortarse) -->
-            <div class="absolute bottom-full right-0 mb-2 w-56 bg-gray-900 text-white text-[10px] rounded-lg p-2 opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-50 text-center shadow-xl">
-              <strong class="text-xs">{{ attraction.isActive ? 'Activo' : 'Inactivo' }}</strong><br>
-              <p class="mt-1">{{ attraction.isActive ? 'Acepta nuevas reservas. Clic para bloquear.' : 'No acepta reservas nuevas. Clic para reactivar.' }}</p>
-              <div class="text-gray-400 text-[9px] mt-2 pt-2 border-t border-white/10 italic">
-                Nota: Diferente a Publicada/Borrador. Puede estar publicada pero cerrada a reservas.
+            <!-- Tooltip explicativo (Centrado y con z-index alto) -->
+            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 bg-gray-900 text-white text-[11px] rounded-2xl p-4 opacity-0 group-hover/tooltip:opacity-100 transition-all pointer-events-none z-[100] text-center shadow-2xl scale-95 group-hover/tooltip:scale-100">
+              <div class="font-black text-xs mb-1 text-primary-light">{{ attraction.isActive ? 'OPERATIVO' : 'BLOQUEADO' }}</div>
+              <p class="leading-relaxed">{{ attraction.isActive ? 'La atracción acepta reservas y es visible para la venta.' : 'Atracción pausada administrativamente. No permite nuevas reservas.' }}</p>
+              <div class="mt-3 pt-2 border-t border-white/10 text-[9px] text-gray-400">
+                Punto de control independiente de la Publicación (Borrador/Publicada).
               </div>
-              <div class="absolute top-full right-4 border-4 border-transparent border-t-gray-900"></div>
+              <div class="absolute top-full left-1/2 -translate-x-1/2 border-[6px] border-transparent border-t-gray-900"></div>
             </div>
           </div>
 

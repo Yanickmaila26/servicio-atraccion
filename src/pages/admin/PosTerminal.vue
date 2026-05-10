@@ -37,6 +37,23 @@ const form = ref({
   tickets: {} // { ticketCategoryId: quantity }
 })
 
+const availableDates = ref([])
+
+const fetchAvailableDates = async (prodId) => {
+  if (!prodId) return
+  try {
+    const data = await scheduleService.getSlots(prodId, {
+      fromDate: new Date().toISOString().split('T')[0],
+      toDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    })
+    // Extraer fechas únicas que tengan capacidad
+    const dates = [...new Set(data.filter(s => s.capacityAvailable > 0).map(s => s.slotDate))]
+    availableDates.value = dates.sort()
+  } catch (err) {
+    console.error(err)
+  }
+}
+
 const fetchInitialData = async () => {
   initialLoading.value = true
   try {
@@ -111,6 +128,7 @@ const onProductSelect = (prodId) => {
       form.value.tickets[tier.id] = 0
     })
   }
+  fetchAvailableDates(prodId)
   fetchSlots()
 }
 
@@ -136,9 +154,9 @@ const registerSale = async () => {
   try {
     const payload = {
       slotId: form.value.slotId, // El backend ahora requiere el SlotId
-      contactName: form.value.clientName,
-      contactEmail: form.value.clientEmail,
-      notes: "Venta en taquilla - " + form.value.paymentMethod,
+      contactName: form.value.clientName || 'Cliente General',
+      contactEmail: form.value.clientEmail || 'pos@local.com',
+      notes: "Venta POS - " + form.value.paymentMethod,
       passengers: Object.entries(form.value.tickets)
         .filter(([_, qty]) => qty > 0)
         .map(([id, qty]) => ({ priceTierId: id, quantity: qty }))
@@ -214,7 +232,15 @@ onMounted(fetchInitialData)
                 </select>
               </div>
               <div class="space-y-2">
-                <BaseInput label="Fecha" type="date" v-model="form.date" @change="fetchSlots" />
+                <BaseInput label="Fecha de Reserva" type="date" v-model="form.date" @change="fetchSlots" />
+                <div v-if="availableDates.length > 0" class="flex flex-wrap gap-1 mt-1">
+                  <span class="text-[10px] font-bold text-text-secondary w-full">Próximas fechas con cupos:</span>
+                  <button v-for="d in availableDates.slice(0, 5)" :key="d" 
+                    @click.prevent="form.date = d; fetchSlots()"
+                    class="px-2 py-0.5 rounded bg-primary/5 text-primary text-[10px] font-bold hover:bg-primary hover:text-white transition-colors">
+                    {{ new Date(d).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) }}
+                  </button>
+                </div>
               </div>
             </div>
 

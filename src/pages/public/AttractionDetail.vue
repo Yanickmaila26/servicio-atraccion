@@ -603,7 +603,7 @@ onUnmounted(() => { if (leafletMap) { leafletMap.remove(); leafletMap = null } }
                   <div class="flex-1">
                     <div class="flex items-center gap-2 mb-1">
                       <h3 class="text-lg font-extrabold text-text-primary">{{ prod.title }}</h3>
-                      <span v-if="prod.isPrivate" class="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-bold rounded uppercase">Privado</span>
+                      <span v-if="prod.isPrivate || prod.isExclusive" class="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-black rounded uppercase tracking-wider">Privado</span>
                     </div>
                     <p class="text-sm text-text-secondary">{{ prod.description }}</p>
                     <div class="flex flex-wrap gap-4 text-xs font-semibold text-text-secondary mt-2">
