@@ -130,5 +130,4 @@ const emit = defineEmits(['edit', 'delete', 'toggle-status', 'toggle-active', 'v
         </div>
       </div>
     </div>
-  </div>
 </template>
