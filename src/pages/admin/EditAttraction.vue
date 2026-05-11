@@ -492,8 +492,4 @@ textarea { resize: none; }
 .animate-in {
   animation: fade-in 0.4s ease-out forwards;
 }
-</style>>
-      </div>
-    </div>
-  </div>
-</template>
+</style>
