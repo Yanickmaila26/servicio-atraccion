@@ -9,7 +9,8 @@ import BaseInput from '@/components/common/BaseInput.vue'
 import Swal from 'sweetalert2'
 import {
   ArrowLeftIcon, PlusIcon, TrashIcon, MapIcon,
-  CheckBadgeIcon, GlobeAltIcon, TagIcon, ListBulletIcon
+  CheckBadgeIcon, GlobeAltIcon, TagIcon, ListBulletIcon,
+  CheckCircleIcon, PhotoIcon
 } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
@@ -39,11 +40,11 @@ const form = reactive({
   locationId: '',
   subcategoryId: '',
   tags: [],
-  inclusions: [],
+  inclusions: [], // Ahora guardará { inclusionItemId, type }
   itinerary: { overview: '', stops: [] }
 })
 
-// Computed location tree (same pattern as CreateAttractionComplete)
+// Computed location tree
 const countries = computed(() => locations.value)
 const selectedCountryId = ref('')
 const selectedStateId = ref('')
@@ -65,16 +66,25 @@ watch(selectedCategoryId, async (catId) => {
   subcategories.value = catId ? await catalogService.getSubcategories(catId) : []
 })
 
+// Helper functions for Inclusions (Matching CreateAttractionComplete logic)
+const toggleInclusion = (itemId) => {
+  const idx = form.inclusions.findIndex(i => i.inclusionItemId === itemId)
+  if (idx > -1) {
+    form.inclusions.splice(idx, 1)
+  } else {
+    form.inclusions.push({ inclusionItemId: itemId, type: 'included' })
+  }
+}
+
+const setInclusionType = (itemId, type) => {
+  const item = form.inclusions.find(i => i.inclusionItemId === itemId)
+  if (item) item.type = type
+}
+
 function toggleTag(tagId) {
   const idx = form.tags.indexOf(tagId)
   if (idx > -1) form.tags.splice(idx, 1)
   else form.tags.push(tagId)
-}
-
-function toggleInclusion(inclusionId) {
-  const idx = form.inclusions.indexOf(inclusionId)
-  if (idx > -1) form.inclusions.splice(idx, 1)
-  else form.inclusions.push(inclusionId)
 }
 
 function addStop() {
@@ -87,29 +97,21 @@ function removeStop(idx) { form.itinerary.stops.splice(idx, 1) }
 
 onMounted(async () => {
   try {
-    let a = null
-    try {
-      console.log('Cargando detalle de atracción ID:', attractionId)
-      // Intentar endpoints de detalle (internamente attractions.js ya prueba /management y /complete)
-      a = await attractionService.getManagementDetail(attractionId)
-    } catch (err) {
-      console.warn('Los endpoints de detalle fallaron, intentando recuperación desde lista de gestión...')
-      const managementRes = await attractionService.getManagementList({ pageSize: 100 })
-      const list = managementRes?.items || managementRes?.data || (Array.isArray(managementRes) ? managementRes : [])
-      a = list.find(item => item.id === attractionId)
-    }
-    
-    if (!a) throw new Error('La atracción no existe o no tienes permisos para editarla.')
+    console.log('Cargando detalle de atracción ID:', attractionId)
+    // Usamos directamente el endpoint estable
+    const a = await attractionService.getManagementDetail(attractionId)
+    if (!a) throw new Error('La atracción no existe.')
 
     console.log('Datos de atracción recibidos:', a)
 
-    // Cargar catálogos con logging individual para detectar fallos específicos
-    let locData = [], catData = [], tagData = [], incData = []
-    try { locData = await catalogService.getLocations() } catch (e) { console.error('Error cargando Ubicaciones:', e) }
-    try { catData = await catalogService.getCategories() } catch (e) { console.error('Error cargando Categorías:', e) }
-    try { tagData = await catalogService.getTags() } catch (e) { console.error('Error cargando Etiquetas:', e) }
-    try { incData = await catalogService.getInclusions() } catch (e) { console.error('Error cargando Inclusiones:', e) }
-
+    // Cargar catálogos
+    const [locData, catData, tagData, incData] = await Promise.all([
+      catalogService.getLocations(),
+      catalogService.getCategories(),
+      catalogService.getTags(),
+      catalogService.getInclusions()
+    ])
+    
     locations.value = locData || []
     categories.value = catData || []
     availableTags.value = tagData || []
@@ -126,37 +128,47 @@ onMounted(async () => {
     form.locationId = a.locationId || ''
     form.subcategoryId = a.subcategoryId || ''
     
-    // Mapeo robusto de Tags e Inclusiones
-    form.tags = (a.tags || []).map(t => t.id || t.tagId).filter(id => !!id)
-    form.inclusions = (a.inclusions || []).map(i => i.inclusionItemId || i.id).filter(id => !!id)
+    // Mapeo de Tags (IDs)
+    form.tags = (a.tags || []).map(t => t.id || t.tagId)
+    
+    // Mapeo de Inclusiones (Estructura compleja { inclusionItemId, type })
+    form.inclusions = (a.inclusions || []).map(i => ({
+      inclusionItemId: i.inclusionItemId || i.id,
+      type: i.type || 'included'
+    }))
     
     form.itinerary = {
       overview: a.itinerary?.overview || '',
       stops: (a.itinerary?.stops || []).map(s => ({ ...s }))
     }
 
-    // Seleccionar categoría para cargar subcategorías
+    // Autoselección de Categoría
     if (a.categoryId) {
       selectedCategoryId.value = a.categoryId
-    } else if (a.categoryName && categories.value.length) {
+    } else if (a.categoryName) {
       const cat = categories.value.find(c => c.name === a.categoryName)
       if (cat) selectedCategoryId.value = cat.id
     }
-    
-    // Reconstruir árbol de ubicación (País -> Estado -> Ciudad)
+
+    // Reconstrucción del árbol de ubicación basado en la Ciudad (locationId)
     if (a.locationId && locations.value.length) {
-       locations.value.forEach(c => {
-         c.children?.forEach(s => {
-           if (s.children?.some(city => city.id === a.locationId)) {
-             selectedCountryId.value = c.id
-             selectedStateId.value = s.id
-           }
-         })
-       })
+      locations.value.forEach(country => {
+        country.children?.forEach(state => {
+          if (state.children?.some(city => city.id === a.locationId)) {
+            selectedCountryId.value = country.id
+            setTimeout(() => {
+              selectedStateId.value = state.id
+              setTimeout(() => {
+                form.locationId = a.locationId
+              }, 100)
+            }, 100)
+          }
+        })
+      })
     }
   } catch (e) {
-    console.error('Error crítico en EditAttraction:', e)
-    Swal.fire('Error', 'No se pudo cargar la atracción: ' + e.message, 'error')
+    console.error('Error cargando atracción:', e)
+    Swal.fire('Error', 'No se pudo cargar los datos: ' + e.message, 'error')
   } finally {
     loading.value = false
   }
@@ -198,240 +210,289 @@ async function handleSave() {
 }
 
 const tabs = [
-  { key: 'general', label: 'General', icon: 'CheckBadgeIcon' },
-  { key: 'location', label: 'Ubicación', icon: 'GlobeAltIcon' },
-  { key: 'tags', label: 'Tags', icon: 'TagIcon' },
-  { key: 'inclusions', label: 'Inclusiones', icon: 'CheckCircleIcon' },
-  { key: 'itinerary', label: 'Itinerario', icon: 'ListBulletIcon' },
+  { key: 'general', label: 'General', icon: CheckBadgeIcon },
+  { key: 'location', label: 'Ubicación', icon: GlobeAltIcon },
+  { key: 'tags', label: 'Tags', icon: TagIcon },
+  { key: 'inclusions', label: 'Inclusiones', icon: CheckCircleIcon },
+  { key: 'itinerary', label: 'Itinerario', icon: ListBulletIcon },
 ]
 </script>
 
 <template>
-  <div class="max-w-4xl mx-auto pb-20 px-4">
+  <div class="max-w-5xl mx-auto pb-20 px-4">
     <!-- Header -->
-    <div class="flex items-center gap-4 mb-8 pt-4">
-      <button @click="router.push('/admin/attractions')" class="p-2 hover:bg-surface rounded-xl transition-colors border border-border">
-        <ArrowLeftIcon class="h-5 w-5 text-text-secondary" />
+    <div class="flex items-center gap-4 mb-8 pt-6">
+      <button @click="router.push('/admin/attractions')" class="p-2.5 hover:bg-surface rounded-2xl transition-all border border-border shadow-sm group">
+        <ArrowLeftIcon class="h-5 w-5 text-text-secondary group-hover:text-primary transition-colors" />
       </button>
       <div>
-        <h1 class="text-2xl font-black text-text-primary">Editar Atracción</h1>
-        <p class="text-text-secondary text-sm">Los cambios se guardan en el servidor al hacer clic en Guardar.</p>
+        <h1 class="text-3xl font-black text-text-primary tracking-tight">Editar Atracción</h1>
+        <p class="text-text-secondary text-sm">Gestiona los detalles completos de la experiencia.</p>
       </div>
     </div>
 
-    <div v-if="loading" class="py-24 text-center text-text-secondary">
-      <div class="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-      Cargando...
+    <div v-if="loading" class="py-32 text-center text-text-secondary bg-surface rounded-3xl border border-border">
+      <div class="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+      <p class="font-bold">Cargando datos maestros...</p>
     </div>
 
     <div v-else class="space-y-6">
-      <!-- Tabs -->
-      <div class="flex gap-1 bg-surface border border-border rounded-2xl p-1 flex-wrap">
+      <!-- Tabs Premium -->
+      <div class="flex gap-2 bg-surface border border-border rounded-2xl p-1.5 overflow-x-auto no-scrollbar shadow-sm">
         <button v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key"
-          class="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold transition-all min-w-[100px]"
-          :class="activeTab === tab.key ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-primary'">
+          class="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-black transition-all whitespace-nowrap"
+          :class="activeTab === tab.key ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-[1.02]' : 'text-text-secondary hover:bg-background hover:text-primary'">
+          <component :is="tab.icon" class="h-4 w-4" />
           {{ tab.label }}
         </button>
       </div>
 
       <!-- Tab: General -->
-      <div v-if="activeTab === 'general'" class="bg-surface border border-border rounded-3xl p-6 space-y-5">
-        <h2 class="font-black text-text-primary text-lg">Información General</h2>
-
-        <BaseInput label="Nombre de la Atracción" v-model="form.name" required placeholder="Nombre visible al cliente" />
-
-        <div class="space-y-1.5">
-          <label class="text-sm font-semibold text-text-primary ml-1">Descripción Corta</label>
-          <textarea v-model="form.descriptionShort" rows="2"
-            class="w-full bg-background border border-border rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm"
-            placeholder="Resumen breve que aparece en las tarjetas"></textarea>
+      <div v-if="activeTab === 'general'" class="bg-surface border border-border rounded-3xl p-8 space-y-6 animate-in fade-in duration-500">
+        <div class="flex items-center gap-2 mb-2">
+          <CheckBadgeIcon class="h-6 w-6 text-primary" />
+          <h2 class="text-xl font-bold text-text-primary">Información General</h2>
         </div>
 
-        <div class="space-y-1.5">
-          <label class="text-sm font-semibold text-text-primary ml-1">Descripción Completa</label>
-          <textarea v-model="form.descriptionFull" rows="5"
-            class="w-full bg-background border border-border rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm"
-            placeholder="Descripción completa con todos los detalles"></textarea>
+        <BaseInput label="Nombre de la Atracción" v-model="form.name" required placeholder="Ej: Tour Volcán Cotopaxi Full Day" />
+
+        <div class="space-y-2">
+          <label class="text-xs font-black uppercase text-text-secondary ml-1">Descripción Corta (Max 250)</label>
+          <textarea v-model="form.descriptionShort" rows="2" maxlength="250"
+            class="w-full bg-background border border-border rounded-2xl py-3 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm transition-all"
+            placeholder="Resumen para las tarjetas de búsqueda..."></textarea>
         </div>
 
-        <div class="space-y-1.5">
-          <label class="text-sm font-semibold text-text-primary ml-1">Nivel de Dificultad</label>
-          <select v-model="form.difficultyLevel"
-            class="w-full bg-background border border-border rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-primary/20 outline-none">
-            <option value="">Sin especificar</option>
-            <option value="easy">Fácil</option>
-            <option value="moderate">Moderado</option>
-            <option value="hard">Difícil</option>
-          </select>
+        <div class="space-y-2">
+          <label class="text-xs font-black uppercase text-text-secondary ml-1">Descripción Completa</label>
+          <textarea v-model="form.descriptionFull" rows="6"
+            class="w-full bg-background border border-border rounded-2xl py-4 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm transition-all"
+            placeholder="Describe la experiencia detalladamente..."></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div class="space-y-2">
+            <label class="text-xs font-black uppercase text-text-secondary ml-1">Nivel de Exigencia</label>
+            <select v-model="form.difficultyLevel"
+              class="w-full bg-background border border-border rounded-2xl py-3.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 font-bold text-sm">
+              <option value="">Sin especificar</option>
+              <option value="easy">Fácil (Caminata ligera)</option>
+              <option value="moderate">Moderada (Esfuerzo medio)</option>
+              <option value="hard">Difícil (Alta exigencia)</option>
+            </select>
+          </div>
         </div>
       </div>
 
       <!-- Tab: Location -->
-      <div v-if="activeTab === 'location'" class="bg-surface border border-border rounded-3xl p-6 space-y-5">
-        <h2 class="font-black text-text-primary text-lg">Ubicación</h2>
+      <div v-if="activeTab === 'location'" class="bg-surface border border-border rounded-3xl p-8 space-y-6 animate-in fade-in duration-500">
+        <div class="flex items-center gap-2 mb-2">
+          <GlobeAltIcon class="h-6 w-6 text-primary" />
+          <h2 class="text-xl font-bold text-text-primary">Ubicación y Mapa</h2>
+        </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div class="space-y-1.5">
-            <label class="text-sm font-semibold text-text-primary ml-1">País</label>
-            <select v-model="selectedCountryId" class="w-full bg-background border border-border rounded-xl py-2.5 px-4 outline-none focus:ring-2 focus:ring-primary/20">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div class="space-y-2">
+            <label class="text-xs font-black uppercase text-text-secondary ml-1">País</label>
+            <select v-model="selectedCountryId" class="w-full bg-background border border-border rounded-2xl py-3.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 font-bold text-sm">
               <option value="">Seleccionar...</option>
               <option v-for="c in countries" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
           </div>
-          <div class="space-y-1.5">
-            <label class="text-sm font-semibold text-text-primary ml-1">Estado / Región</label>
-            <select v-model="selectedStateId" :disabled="!states.length" class="w-full bg-background border border-border rounded-xl py-2.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50">
+          <div class="space-y-2">
+            <label class="text-xs font-black uppercase text-text-secondary ml-1">Provincia / Región</label>
+            <select v-model="selectedStateId" :disabled="!states.length" class="w-full bg-background border border-border rounded-2xl py-3.5 px-4 outline-none disabled:opacity-50 font-bold text-sm">
               <option value="">Seleccionar...</option>
               <option v-for="s in states" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
           </div>
-          <div class="space-y-1.5">
-            <label class="text-sm font-semibold text-text-primary ml-1">Ciudad</label>
-            <select v-model="form.locationId" :disabled="!cities.length" class="w-full bg-background border border-border rounded-xl py-2.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50">
+          <div class="space-y-2">
+            <label class="text-xs font-black uppercase text-text-secondary ml-1">Ciudad (Punto Base)</label>
+            <select v-model="form.locationId" :disabled="!cities.length" class="w-full bg-background border border-border rounded-2xl py-3.5 px-4 outline-none disabled:opacity-50 border-primary/30 font-bold text-sm">
               <option value="">Seleccionar...</option>
               <option v-for="city in cities" :key="city.id" :value="city.id">{{ city.name }}</option>
             </select>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="space-y-1.5">
-            <label class="text-sm font-semibold text-text-primary ml-1">Categoría</label>
-            <select v-model="selectedCategoryId" class="w-full bg-background border border-border rounded-xl py-2.5 px-4 outline-none focus:ring-2 focus:ring-primary/20">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
+          <div class="space-y-2">
+            <label class="text-xs font-black uppercase text-text-secondary ml-1">Categoría</label>
+            <select v-model="selectedCategoryId" class="w-full bg-background border border-border rounded-2xl py-3.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 font-bold text-sm">
               <option value="">Seleccionar categoría...</option>
               <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
             </select>
           </div>
-          <div class="space-y-1.5">
-            <label class="text-sm font-semibold text-text-primary ml-1">Subcategoría</label>
-            <select v-model="form.subcategoryId" :disabled="!subcategories.length" class="w-full bg-background border border-border rounded-xl py-2.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50">
+          <div class="space-y-2">
+            <label class="text-xs font-black uppercase text-text-secondary ml-1">Subcategoría</label>
+            <select v-model="form.subcategoryId" :disabled="!subcategories.length" class="w-full bg-background border border-border rounded-2xl py-3.5 px-4 outline-none disabled:opacity-50 font-bold text-sm">
               <option value="">Seleccionar subcategoría...</option>
               <option v-for="sc in subcategories" :key="sc.id" :value="sc.id">{{ sc.name }}</option>
             </select>
           </div>
         </div>
 
-        <BaseInput label="Punto de Encuentro" v-model="form.meetingPoint" placeholder="Ej: Entrada principal del parque, frente al kiosko azul" />
-
-        <div class="space-y-1.5">
-          <label class="text-sm font-semibold text-text-primary ml-1 flex items-center gap-2">
-            <MapIcon class="h-4 w-4 text-primary" /> Coordenadas GPS (Punto de Encuentro)
-          </label>
+        <div class="space-y-4 pt-6 border-t border-border">
+          <h3 class="text-sm font-black uppercase text-text-primary tracking-wider">Geolocalización (Google Maps)</h3>
+          <MapPicker 
+            v-model:lat="form.latitude" 
+            v-model:lng="form.longitude" 
+            label="Mueve el pin hasta el punto de encuentro exacto"
+          />
           <div class="grid grid-cols-2 gap-4">
-            <BaseInput label="Latitud" type="number" step="any" v-model.number="form.latitude" placeholder="Ej: 14.0818" />
-            <BaseInput label="Longitud" type="number" step="any" v-model.number="form.longitude" placeholder="Ej: -87.2068" />
+            <BaseInput label="Latitud" type="number" step="any" v-model.number="form.latitude" disabled class="opacity-70" />
+            <BaseInput label="Longitud" type="number" step="any" v-model.number="form.longitude" disabled class="opacity-70" />
           </div>
-          <p class="text-xs text-text-secondary px-1 italic">
-            Usa Google Maps: haz clic derecho en el punto → "¿Qué hay aquí?" para obtener las coordenadas.
-          </p>
+          <BaseInput label="Punto de Encuentro (Texto)" v-model="form.meetingPoint" placeholder="Instrucciones precisas para el turista..." />
         </div>
       </div>
 
       <!-- Tab: Tags -->
-      <div v-if="activeTab === 'tags'" class="bg-surface border border-border rounded-3xl p-6 space-y-5">
-        <h2 class="font-black text-text-primary text-lg">Etiquetas</h2>
-        <p class="text-text-secondary text-sm">Selecciona las etiquetas que clasifican mejor esta atracción.</p>
+      <div v-if="activeTab === 'tags'" class="bg-surface border border-border rounded-3xl p-8 space-y-6 animate-in fade-in duration-500">
+        <div class="flex items-center gap-2">
+          <TagIcon class="h-6 w-6 text-primary" />
+          <h2 class="text-xl font-bold text-text-primary">Etiquetas</h2>
+        </div>
+        <p class="text-text-secondary text-sm">Selecciona los tags para mejorar la búsqueda del cliente.</p>
+        
         <div class="flex flex-wrap gap-3">
           <button v-for="tag in availableTags" :key="tag.id"
             @click="toggleTag(tag.id)"
-            class="px-4 py-2 rounded-full text-sm font-bold border transition-all"
+            class="px-5 py-2.5 rounded-full text-xs font-black border transition-all uppercase tracking-wider"
             :class="form.tags.includes(tag.id)
-              ? 'bg-primary text-white border-primary shadow-md'
-              : 'bg-background border-border text-text-secondary hover:border-primary/40'">
+              ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+              : 'bg-background border-border text-text-secondary hover:border-primary/40 hover:text-primary'">
             {{ tag.name }}
           </button>
         </div>
-        <p class="text-xs text-text-secondary italic">{{ form.tags.length }} etiqueta(s) seleccionada(s)</p>
       </div>
 
-      <!-- Tab: Inclusions -->
-      <div v-if="activeTab === 'inclusions'" class="bg-surface border border-border rounded-3xl p-6 space-y-5">
-        <h2 class="font-black text-text-primary text-lg">Inclusiones y Exclusiones</h2>
-        <p class="text-text-secondary text-sm">Selecciona los elementos que están incluidos en el servicio base.</p>
-        
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button v-for="inc in availableInclusions" :key="inc.id"
-            @click="toggleInclusion(inc.id)"
-            class="flex items-center gap-3 p-4 rounded-2xl border transition-all text-left"
-            :class="form.inclusions.includes(inc.id)
-              ? 'bg-primary/5 border-primary text-primary'
-              : 'bg-background border-border text-text-secondary hover:border-primary/40'">
-            <div class="w-5 h-5 rounded-md border flex items-center justify-center shrink-0"
-              :class="form.inclusions.includes(inc.id) ? 'bg-primary border-primary' : 'bg-surface border-border'">
-              <PlusIcon v-if="!form.inclusions.includes(inc.id)" class="h-3 w-3" />
-              <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3 text-white">
-                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
-              </svg>
-            </div>
-            <span class="font-bold text-sm">{{ inc.name }}</span>
-          </button>
+      <!-- Tab: Inclusions (Same UI as CreateAttractionComplete) -->
+      <div v-if="activeTab === 'inclusions'" class="bg-surface border border-border rounded-3xl p-8 space-y-6 animate-in fade-in duration-500">
+        <div class="flex items-center gap-2 mb-2">
+          <CheckBadgeIcon class="h-6 w-6 text-primary" />
+          <h2 class="text-xl font-bold text-text-primary">¿Qué incluye la atracción?</h2>
         </div>
-        
-        <p v-if="availableInclusions.length === 0" class="py-10 text-center text-text-secondary italic border border-dashed border-border rounded-2xl">
-          No hay inclusiones configuradas en el catálogo global.
-        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div v-for="item in availableInclusions" :key="item.id" 
+            class="p-5 border rounded-2xl transition-all" 
+            :class="form.inclusions.some(i => i.inclusionItemId === item.id) ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-background hover:bg-surface'">
+            
+            <div class="flex items-center gap-4 mb-4">
+              <input type="checkbox" 
+                :checked="form.inclusions.some(i => i.inclusionItemId === item.id)" 
+                @change="toggleInclusion(item.id)" 
+                class="rounded-lg text-primary focus:ring-primary w-6 h-6 border-border" />
+              <span class="font-black text-sm text-text-primary uppercase tracking-tight">{{ item.defaultText || item.name }}</span>
+            </div>
+            
+            <!-- Tipos de Inclusión Avanzados -->
+            <div v-if="form.inclusions.some(i => i.inclusionItemId === item.id)" class="grid grid-cols-4 gap-1.5 mt-2 p-1 bg-surface rounded-xl border border-border/50">
+              <button 
+                v-for="type in ['included', 'not_included', 'optional', 'bring']" 
+                :key="type"
+                @click="setInclusionType(item.id, type)"
+                class="py-2 text-[9px] font-black uppercase rounded-lg border transition-all"
+                :class="form.inclusions.find(i => i.inclusionItemId === item.id).type === type ? 'bg-primary text-white border-primary shadow-sm' : 'bg-transparent text-text-secondary border-transparent hover:bg-background'">
+                {{ {included: 'Incluye', not_included: 'No Inc', optional: 'Opcional', bring: 'Llevar'}[type] }}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Tab: Itinerary Stops -->
-      <div v-if="activeTab === 'itinerary'" class="bg-surface border border-border rounded-3xl p-6 space-y-5">
-        <div class="flex items-center justify-between">
-          <h2 class="font-black text-text-primary text-lg">Paradas del Itinerario</h2>
+      <div v-if="activeTab === 'itinerary'" class="bg-surface border border-border rounded-3xl p-8 space-y-6 animate-in fade-in duration-500">
+        <div class="flex items-center justify-between border-b border-border pb-4">
+          <div class="flex items-center gap-2">
+            <ListBulletIcon class="h-6 w-6 text-primary" />
+            <h2 class="text-xl font-bold text-text-primary">Itinerario y Paradas</h2>
+          </div>
           <BaseButton size="sm" variant="outline" @click="addStop">
             <PlusIcon class="h-4 w-4 mr-1" /> Agregar Parada
           </BaseButton>
         </div>
 
-        <div class="space-y-1.5">
-          <label class="text-sm font-semibold text-text-primary ml-1">Descripción general del recorrido</label>
+        <div class="space-y-2">
+          <label class="text-xs font-black uppercase text-text-secondary ml-1">Descripción general del recorrido</label>
           <textarea v-model="form.itinerary.overview" rows="3"
-            class="w-full bg-background border border-border rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm"
+            class="w-full bg-background border border-border rounded-2xl py-3 px-4 focus:ring-2 focus:ring-primary/20 outline-none text-sm transition-all"
             placeholder="Breve descripción del recorrido completo..."></textarea>
         </div>
 
-        <div v-if="form.itinerary.stops.length === 0" class="py-10 text-center text-text-secondary italic border border-dashed border-border rounded-2xl">
-          No hay paradas. Haz clic en "Agregar Parada" para empezar.
+        <div v-if="form.itinerary.stops.length === 0" class="py-16 text-center text-text-secondary italic border-2 border-dashed border-border rounded-3xl bg-background/50">
+          <MapIcon class="h-10 w-10 mx-auto mb-3 opacity-20" />
+          No hay paradas configuradas.
         </div>
 
         <div v-else class="space-y-4">
           <div v-for="(stop, idx) in form.itinerary.stops" :key="idx"
-            class="bg-background border border-border rounded-2xl p-5 space-y-4">
+            class="bg-background border border-border rounded-3xl p-6 space-y-6 shadow-sm relative group transition-all hover:border-primary/30">
             <div class="flex items-center justify-between">
-              <span class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-black text-sm">{{ idx + 1 }}</span>
-              <button @click="removeStop(idx)" class="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                <TrashIcon class="h-4 w-4" />
+              <div class="flex items-center gap-3">
+                <span class="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-black text-sm shadow-lg shadow-primary/20">{{ idx + 1 }}</span>
+                <h4 class="font-black text-text-primary uppercase tracking-tight">{{ stop.name || 'Nueva Parada' }}</h4>
+              </div>
+              <button @click="removeStop(idx)" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all">
+                <TrashIcon class="h-5 w-5" />
               </button>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <BaseInput label="Nombre de la Parada" v-model="stop.name" required />
-              <div class="space-y-1.5">
-                <label class="text-sm font-semibold text-text-primary ml-1">Tipo de Admisión</label>
-                <select v-model="stop.admissionType" class="w-full bg-surface border border-border rounded-xl py-2.5 px-4 outline-none focus:ring-2 focus:ring-primary/20">
+              <div class="space-y-2">
+                <label class="text-xs font-black uppercase text-text-secondary ml-1">Tipo de Admisión</label>
+                <select v-model="stop.admissionType" class="w-full bg-surface border border-border rounded-2xl py-3 px-4 outline-none focus:ring-2 focus:ring-primary/20 font-bold text-sm">
                   <option value="included">Incluido</option>
                   <option value="optional">Opcional</option>
                   <option value="excluded">No incluido</option>
+                  <option value="bring">Llevar entrada</option>
                 </select>
               </div>
             </div>
-            <div class="space-y-1.5">
-              <label class="text-sm font-semibold text-text-primary ml-1">Descripción</label>
-              <textarea v-model="stop.description" rows="2"
-                class="w-full bg-surface border border-border rounded-xl py-2 px-4 focus:ring-2 focus:ring-primary/20 outline-none text-sm"></textarea>
-            </div>
-            <div class="grid grid-cols-3 gap-4">
-              <BaseInput label="Duración (min)" type="number" v-model.number="stop.stayTimeMinutes" min="1" />
-              <BaseInput label="Latitud" type="number" step="any" v-model.number="stop.latitude" />
-              <BaseInput label="Longitud" type="number" step="any" v-model.number="stop.longitude" />
+
+            <MapPicker 
+              v-model:lat="stop.latitude" 
+              v-model:lng="stop.longitude" 
+              :label="'Ubicación de ' + (stop.name || 'la parada')"
+            />
+
+            <div class="grid grid-cols-3 gap-6">
+              <BaseInput label="Duración (min)" type="number" v-model.number="stop.stayTimeMinutes" />
+              <BaseInput label="Latitud" type="number" step="any" v-model.number="stop.latitude" disabled class="opacity-70" />
+              <BaseInput label="Longitud" type="number" step="any" v-model.number="stop.longitude" disabled class="opacity-70" />
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Save Button -->
-      <div class="flex justify-end gap-4 pt-2">
-        <BaseButton variant="outline" @click="router.push('/admin/attractions')">Cancelar</BaseButton>
-        <BaseButton @click="handleSave" :loading="saving" class="px-8">
-          <CheckBadgeIcon class="h-5 w-5 mr-2" /> Guardar Cambios
+      <!-- Footer Actions -->
+      <div class="flex justify-end items-center gap-4 pt-6 border-t border-border">
+        <BaseButton variant="outline" @click="router.push('/admin/attractions')" class="px-10">Cancelar</BaseButton>
+        <BaseButton @click="handleSave" :loading="saving" class="px-12 bg-primary shadow-xl shadow-primary/30">
+          <CheckCircleIcon class="h-5 w-5 mr-2" /> Guardar Todos los Cambios
         </BaseButton>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+textarea { resize: none; }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+  animation: fade-in 0.4s ease-out forwards;
+}
+</style>>
       </div>
     </div>
   </div>
