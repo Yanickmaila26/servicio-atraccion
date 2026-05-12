@@ -7,7 +7,6 @@ import {
   EyeIcon,
   CalendarDaysIcon
 } from '@heroicons/vue/24/outline'
-import Swal from 'sweetalert2'
 
 const invoices = ref([])
 const loading = ref(true)
@@ -21,7 +20,6 @@ const fetchMyInvoices = async () => {
     invoices.value = data || []
   } catch (error) {
     console.error(error)
-    // No mostramos error si es 404/vacío, solo si es algo crítico
   } finally {
     loading.value = false
   }
@@ -66,7 +64,9 @@ onMounted(fetchMyInvoices)
       <router-link to="/attractions" class="inline-flex items-center px-6 py-3 bg-primary text-white font-bold rounded-2xl shadow-lg shadow-primary/20 hover:scale-105 transition-transform">
         Explorar Atracciones
       </router-link>
-    </    <!-- Invoices List -->
+    </div>
+
+    <!-- Invoices List -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div v-if="loading" v-for="i in 4" :key="i" class="h-48 bg-surface rounded-3xl animate-pulse"></div>
       
@@ -104,7 +104,7 @@ onMounted(fetchMyInvoices)
       </div>
     </div>
 
-    <!-- Simple Detail Modal -->
+    <!-- Detail Modal -->
     <div v-if="showDetail" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div class="bg-surface w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in">
         <div class="p-8 space-y-6">
@@ -136,9 +136,9 @@ onMounted(fetchMyInvoices)
               <span class="text-text-primary">Total</span>
               <span class="text-primary">${{ (selectedInvoice.total || selectedInvoice.totalAmount || 0).toFixed(2) }}</span>
             </div>
-          </div>   </div>
+          </div>
 
-          <div class="flex flex-col gap-3">
+          <div class="flex flex-col gap-3 pt-4">
             <button @click="downloadPdf(selectedInvoice)" class="w-full py-4 bg-primary text-white font-black rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-3">
               <ArrowDownTrayIcon class="h-6 w-6" /> Descargar Factura PDF
             </button>
