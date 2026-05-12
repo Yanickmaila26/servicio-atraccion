@@ -19,5 +19,9 @@ export default {
 
   delete(id) {
     return api.delete(`/Client/${id}`)
+  },
+
+  validate(documentNumber) {
+    return api.get(`/Client/validate/${documentNumber}`)
   }
 }

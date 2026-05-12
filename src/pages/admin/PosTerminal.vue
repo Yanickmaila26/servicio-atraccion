@@ -1,9 +1,10 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import attractionService from '@/services/attractions'
 import posService from '@/services/pos'
 import scheduleService from '@/services/schedule'
 import catalogService from '@/services/catalog'
+import clientService from '@/services/clients'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseInput from '@/components/common/BaseInput.vue'
 import { 
@@ -12,7 +13,9 @@ import {
   TicketIcon,
   CreditCardIcon,
   UserIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  UserPlusIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/vue/24/outline'
 
 import Swal from 'sweetalert2'
@@ -26,6 +29,8 @@ const selectedProduct = ref(null)
 const products = ref([])
 const slots = ref([])
 const loadingSlots = ref(false)
+const validatingClient = ref(false)
+const isExistingClient = ref(false)
 
 const form = ref({
   date: new Date().toISOString().split('T')[0],
@@ -37,6 +42,40 @@ const form = ref({
   clientAddress: '',
   paymentMethod: 'cash', // cash, card
   tickets: {} // { ticketCategoryId: quantity }
+})
+
+const validateClient = async () => {
+  if (!form.value.clientTaxId || form.value.clientTaxId.length < 10) {
+    isExistingClient.value = false
+    return
+  }
+
+  validatingClient.value = true
+  try {
+    const client = await clientService.validate(form.value.clientTaxId)
+    if (client) {
+      form.value.clientName = client.fullName || client.name || form.value.clientName
+      form.value.clientEmail = client.email || form.value.clientEmail
+      form.value.clientAddress = client.address || form.value.clientAddress
+      isExistingClient.value = true
+    } else {
+      isExistingClient.value = false
+    }
+  } catch (error) {
+    console.error('Error al validar cliente:', error)
+    isExistingClient.value = false
+  } finally {
+    validatingClient.value = false
+  }
+}
+
+watch(() => form.value.clientTaxId, (newVal) => {
+  if (newVal && newVal.length >= 10) {
+    const timer = setTimeout(validateClient, 500)
+    return () => clearTimeout(timer)
+  } else {
+    isExistingClient.value = false
+  }
 })
 
 const availableDates = ref([])
@@ -316,7 +355,18 @@ onMounted(fetchInitialData)
           <div class="space-y-4 mb-8">
             <BaseInput label="Nombre del Cliente" v-model="form.clientName" />
             <div class="grid grid-cols-2 gap-4">
-              <BaseInput label="RUC / Cédula" v-model="form.clientTaxId" placeholder="179000..." />
+              <div class="relative">
+                <BaseInput 
+                  label="RUC / Cédula" 
+                  v-model="form.clientTaxId" 
+                  placeholder="179000..." 
+                />
+                <div class="absolute right-3 top-[34px] flex items-center">
+                  <div v-if="validatingClient" class="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                  <CheckCircleIcon v-else-if="isExistingClient" class="h-5 w-5 text-green-500" title="Cliente frecuente encontrado" />
+                  <UserPlusIcon v-else-if="form.clientTaxId.length >= 10" class="h-5 w-5 text-text-secondary opacity-50" title="Nuevo cliente" />
+                </div>
+              </div>
               <BaseInput label="Email (Factura)" v-model="form.clientEmail" type="email" />
             </div>
             <BaseInput label="Dirección de Facturación" v-model="form.clientAddress" placeholder="Ej: Av. Principal N12" />
