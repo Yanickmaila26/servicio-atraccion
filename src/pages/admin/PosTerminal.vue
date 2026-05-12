@@ -33,6 +33,8 @@ const form = ref({
   clientName: 'Cliente General (POS)',
   clientEmail: 'pos@local.com',
   clientPhone: '',
+  clientTaxId: '',
+  clientAddress: '',
   paymentMethod: 'cash', // cash, card
   tickets: {} // { ticketCategoryId: quantity }
 })
@@ -147,19 +149,26 @@ const totalTickets = computed(() => {
 })
 
 const registerSale = async () => {
-  if (totalTickets.value === 0) return alert('Debes agregar al menos 1 ticket.')
-  if (!form.value.slotId) return alert('Selecciona un horario disponible.')
+  if (totalTickets.value === 0) return Swal.fire('Atención', 'Debes agregar al menos 1 ticket.', 'warning')
+  if (!form.value.slotId) return Swal.fire('Atención', 'Selecciona un horario disponible.', 'warning')
 
   loading.value = true
   try {
     const payload = {
-      slotId: form.value.slotId, // El backend ahora requiere el SlotId
+      slotId: form.value.slotId,
       contactName: form.value.clientName || 'Cliente General',
       contactEmail: form.value.clientEmail || 'pos@local.com',
       notes: "Venta POS - " + form.value.paymentMethod,
       passengers: Object.entries(form.value.tickets)
         .filter(([_, qty]) => qty > 0)
-        .map(([id, qty]) => ({ priceTierId: id, quantity: qty }))
+        .map(([id, qty]) => ({ priceTierId: id, quantity: qty })),
+      // Objeto de facturación según nueva especificación del backend
+      billing: (form.value.clientTaxId || form.value.clientAddress) ? {
+        customerName: form.value.clientName,
+        taxId: form.value.clientTaxId,
+        email: form.value.clientEmail,
+        address: form.value.clientAddress
+      } : null
     }
 
     await posService.registerSale(payload)
@@ -172,8 +181,12 @@ const registerSale = async () => {
     slots.value = []
     form.value.tickets = {}
     form.value.slotId = ''
+    form.value.clientName = 'Cliente General (POS)'
+    form.value.clientEmail = 'pos@local.com'
+    form.value.clientTaxId = ''
+    form.value.clientAddress = ''
   } catch (error) {
-    alert('Error al procesar pago: \n' + error.message)
+    Swal.fire('Error', error.message, 'error')
   } finally {
     loading.value = false
   }
@@ -302,7 +315,11 @@ onMounted(fetchInitialData)
           
           <div class="space-y-4 mb-8">
             <BaseInput label="Nombre del Cliente" v-model="form.clientName" />
-            <BaseInput label="Email (Envío de tickets)" v-model="form.clientEmail" type="email" />
+            <div class="grid grid-cols-2 gap-4">
+              <BaseInput label="RUC / Cédula" v-model="form.clientTaxId" placeholder="179000..." />
+              <BaseInput label="Email (Factura)" v-model="form.clientEmail" type="email" />
+            </div>
+            <BaseInput label="Dirección de Facturación" v-model="form.clientAddress" placeholder="Ej: Av. Principal N12" />
             
             <div class="space-y-2 pt-4">
               <label class="text-xs font-bold text-text-secondary uppercase">Método de Pago Local</label>

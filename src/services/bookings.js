@@ -18,7 +18,7 @@ export default {
   },
 
   create(data) {
-    return api.post('/Booking', data)
+    return api.post('/Booking/create', data)
   },
 
   cancel(pnrCode, reason = '') {

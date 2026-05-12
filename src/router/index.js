@@ -77,6 +77,11 @@ const routes = [
         name: 'ManageUsers',
         component: () => import('@/pages/admin/ManageUsers.vue'),
         meta: { requiresAuth: true, roles: ['Admin'] }
+      },
+      {
+        path: 'invoices',
+        name: 'ManageInvoices',
+        component: () => import('@/pages/admin/ManageInvoices.vue')
       }
     ]
   },
@@ -119,6 +124,12 @@ const routes = [
         path: 'my-bookings',
         name: 'MyBookings',
         component: () => import('@/pages/public/MyBookings.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'my-invoices',
+        name: 'MyInvoices',
+        component: () => import('@/pages/public/MyInvoices.vue'),
         meta: { requiresAuth: true }
       },
       {

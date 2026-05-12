@@ -31,6 +31,7 @@ const handleLogout = () => {
               <router-link to="/" class="text-sm font-bold text-text-secondary hover:text-primary transition-colors" active-class="text-primary">Inicio</router-link>
               <router-link to="/attractions" class="text-sm font-bold text-text-secondary hover:text-primary transition-colors" active-class="text-primary">Explorar Tours</router-link>
               <router-link v-if="authStore.isAuthenticated && !authStore.canAccessAdmin" to="/my-bookings" class="text-sm font-bold text-text-secondary hover:text-primary transition-colors" active-class="text-primary">Mis Reservas</router-link>
+              <router-link v-if="authStore.isAuthenticated && !authStore.canAccessAdmin" to="/my-invoices" class="text-sm font-bold text-text-secondary hover:text-primary transition-colors" active-class="text-primary">Mis Facturas</router-link>
             </div>
           </div>
 
@@ -70,6 +71,14 @@ const handleLogout = () => {
                   title="Mis Reservas"
                 >
                   <TicketIcon class="h-5 w-5" />
+                </button>
+                <button 
+                  v-if="!authStore.canAccessAdmin"
+                  @click="router.push('/my-invoices')" 
+                  class="p-2 bg-surface rounded-full hover:bg-border transition-colors text-primary"
+                  title="Mis Facturas"
+                >
+                  <DocumentTextIcon class="h-5 w-5" />
                 </button>
                 <button 
                   @click="router.push(authStore.canAccessAdmin ? '/admin' : '/')" 
@@ -121,6 +130,7 @@ const handleLogout = () => {
             <h4 class="text-sm font-black uppercase tracking-wider text-text-primary mb-4">Cuenta</h4>
             <ul class="space-y-2">
               <li v-if="authStore.isAuthenticated"><router-link to="/my-bookings" class="text-sm text-text-secondary hover:text-primary transition-colors">Mis Reservas</router-link></li>
+              <li v-if="authStore.isAuthenticated"><router-link to="/my-invoices" class="text-sm text-text-secondary hover:text-primary transition-colors">Mis Facturas</router-link></li>
               <li v-else><router-link to="/login" class="text-sm text-text-secondary hover:text-primary transition-colors">Iniciar Sesión</router-link></li>
               <li><router-link to="/register" class="text-sm text-text-secondary hover:text-primary transition-colors">Crear Cuenta</router-link></li>
             </ul>

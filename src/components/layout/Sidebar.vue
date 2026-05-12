@@ -24,6 +24,7 @@ const navigation = [
   { name: 'Clientes', route: 'ManageClients', icon: UsersIcon, roles: ['Admin'] },
   { name: 'Usuarios Sistema', route: 'ManageUsers', icon: ShieldCheckIcon, roles: ['Admin'] },
   { name: 'Reservas', route: 'ManageBookings', icon: TicketIcon },
+  { name: 'Facturas', route: 'ManageInvoices', icon: BanknotesIcon },
 ].filter(item => !item.roles || item.roles.includes(authStore.user?.roles?.[0]))
 
 const handleLogout = () => {
