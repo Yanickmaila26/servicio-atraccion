@@ -105,14 +105,14 @@ onMounted(fetchInvoices)
               <td colspan="7" class="px-6 py-12 text-center text-text-secondary italic">No se encontraron registros de facturación.</td>
             </tr>
             <tr v-for="inv in invoices" :key="inv.id" class="hover:bg-background/40 transition-colors">
-              <td class="px-6 py-4 font-bold text-primary">{{ inv.invoiceNumber || 'F-000' + inv.id }}</td>
-              <td class="px-6 py-4 text-sm">{{ new Date(inv.createdAt).toLocaleDateString() }}</td>
+              <td class="px-6 py-4 font-bold text-primary">{{ inv.invoiceNumber || inv.invoice_number || 'F-001' }}</td>
+              <td class="px-6 py-4 text-sm">{{ new Date(inv.createdAt || inv.created_at).toLocaleDateString() }}</td>
               <td class="px-6 py-4">
-                <div class="font-bold text-sm text-text-primary">{{ inv.customerName }}</div>
+                <div class="font-bold text-sm text-text-primary">{{ inv.customerName || inv.customer_name }}</div>
                 <div class="text-xs text-text-secondary">{{ inv.email }}</div>
               </td>
-              <td class="px-6 py-4 text-sm font-mono">{{ inv.taxId }}</td>
-              <td class="px-6 py-4 text-right font-black text-text-primary">${{ inv.totalAmount.toFixed(2) }}</td>
+              <td class="px-6 py-4 text-sm font-mono">{{ inv.taxId || inv.tax_id }}</td>
+              <td class="px-6 py-4 text-right font-black text-text-primary">${{ (inv.total || inv.totalAmount || 0).toFixed(2) }}</td>
               <td class="px-6 py-4 text-center">
                 <span :class="getStatusClass(inv.status)" class="px-3 py-1 rounded-full text-[10px] font-black uppercase">
                   {{ inv.status || 'Emitida' }}
@@ -150,8 +150,8 @@ onMounted(fetchInvoices)
             </div>
             <div class="space-y-1 text-right">
               <p class="text-[10px] font-black uppercase text-text-secondary">Factura N°</p>
-              <p class="text-xl font-black text-primary">{{ selectedInvoice.invoiceNumber || 'F-001' }}</p>
-              <p class="text-xs text-text-secondary italic">Fecha: {{ new Date(selectedInvoice.createdAt).toLocaleString() }}</p>
+              <p class="text-xl font-black text-primary">{{ selectedInvoice.invoiceNumber || selectedInvoice.invoice_number || 'F-001' }}</p>
+              <p class="text-xs text-text-secondary italic">Fecha: {{ new Date(selectedInvoice.createdAt || selectedInvoice.created_at).toLocaleString() }}</p>
             </div>
           </div>
 
@@ -160,11 +160,11 @@ onMounted(fetchInvoices)
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <p class="text-xs font-bold text-text-secondary">Nombre / Razón Social</p>
-                <p class="text-sm font-black">{{ selectedInvoice.customerName }}</p>
+                <p class="text-sm font-black">{{ selectedInvoice.customerName || selectedInvoice.customer_name }}</p>
               </div>
               <div>
                 <p class="text-xs font-bold text-text-secondary">RUC / Cédula</p>
-                <p class="text-sm font-black font-mono">{{ selectedInvoice.taxId }}</p>
+                <p class="text-sm font-black font-mono">{{ selectedInvoice.taxId || selectedInvoice.tax_id }}</p>
               </div>
               <div>
                 <p class="text-xs font-bold text-text-secondary">Email</p>
@@ -180,12 +180,12 @@ onMounted(fetchInvoices)
           <div class="space-y-4">
             <p class="text-[10px] font-black uppercase text-text-secondary">Detalle de Productos</p>
             <div class="space-y-2">
-              <div v-for="item in selectedInvoice.items" :key="item.id" class="flex justify-between items-center text-sm py-2 border-b border-border border-dashed">
+              <div v-for="item in (selectedInvoice.items || selectedInvoice.details || [])" :key="item.id" class="flex justify-between items-center text-sm py-2 border-b border-border border-dashed">
                 <div>
                   <span class="font-black mr-2">{{ item.quantity }}x</span>
                   <span class="text-text-primary font-medium">{{ item.description }}</span>
                 </div>
-                <span class="font-bold">${{ (item.unitPrice * item.quantity).toFixed(2) }}</span>
+                <span class="font-bold">${{ ( (item.unitPrice || item.unit_price || 0) * item.quantity).toFixed(2) }}</span>
               </div>
             </div>
           </div>
@@ -193,15 +193,15 @@ onMounted(fetchInvoices)
           <div class="pt-4 flex flex-col items-end gap-1">
             <div class="flex justify-between w-48 text-sm">
               <span class="text-text-secondary">Subtotal</span>
-              <span class="font-bold">${{ (selectedInvoice.totalAmount / 1.15).toFixed(2) }}</span>
+              <span class="font-bold">${{ (selectedInvoice.subtotal || (selectedInvoice.total / 1.15) || 0).toFixed(2) }}</span>
             </div>
             <div class="flex justify-between w-48 text-sm">
               <span class="text-text-secondary">IVA (15%)</span>
-              <span class="font-bold">${{ (selectedInvoice.totalAmount - (selectedInvoice.totalAmount / 1.15)).toFixed(2) }}</span>
+              <span class="font-bold">${{ (selectedInvoice.taxAmount || selectedInvoice.tax_amount || 0).toFixed(2) }}</span>
             </div>
             <div class="flex justify-between w-48 text-xl border-t border-primary pt-2 mt-2">
               <span class="font-black text-primary">TOTAL</span>
-              <span class="font-black text-primary">${{ selectedInvoice.totalAmount.toFixed(2) }}</span>
+              <span class="font-black text-primary">${{ (selectedInvoice.total || selectedInvoice.totalAmount || 0).toFixed(2) }}</span>
             </div>
           </div>
         </div>

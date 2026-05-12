@@ -66,9 +66,7 @@ onMounted(fetchMyInvoices)
       <router-link to="/attractions" class="inline-flex items-center px-6 py-3 bg-primary text-white font-bold rounded-2xl shadow-lg shadow-primary/20 hover:scale-105 transition-transform">
         Explorar Atracciones
       </router-link>
-    </div>
-
-    <!-- Invoices List -->
+    </    <!-- Invoices List -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div v-if="loading" v-for="i in 4" :key="i" class="h-48 bg-surface rounded-3xl animate-pulse"></div>
       
@@ -81,10 +79,10 @@ onMounted(fetchMyInvoices)
         <div class="flex justify-between items-start mb-6">
           <div class="space-y-1">
             <span class="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded">Factura</span>
-            <h4 class="text-xl font-black text-text-primary">{{ inv.invoiceNumber || 'F-001-' + inv.id }}</h4>
+            <h4 class="text-xl font-black text-text-primary">{{ inv.invoiceNumber || inv.invoice_number || 'F-001' }}</h4>
           </div>
           <div class="text-right">
-            <p class="text-2xl font-black text-primary">${{ (inv.totalAmount || inv.total || 0).toFixed(2) }}</p>
+            <p class="text-2xl font-black text-primary">${{ (inv.total || inv.totalAmount || 0).toFixed(2) }}</p>
             <p class="text-[10px] font-bold text-text-secondary uppercase">Total Pagado</p>
           </div>
         </div>
@@ -92,7 +90,7 @@ onMounted(fetchMyInvoices)
         <div class="grid grid-cols-2 gap-4 border-t border-border pt-4 mt-4">
           <div class="flex items-center gap-2">
             <CalendarDaysIcon class="h-4 w-4 text-text-secondary" />
-            <span class="text-sm font-medium text-text-secondary">{{ inv.createdAt ? new Date(inv.createdAt).toLocaleDateString() : 'N/A' }}</span>
+            <span class="text-sm font-medium text-text-secondary">{{ inv.createdAt || inv.created_at ? new Date(inv.createdAt || inv.created_at).toLocaleDateString() : 'N/A' }}</span>
           </div>
           <div class="flex justify-end gap-2">
             <button @click="openDetail(inv)" class="p-2 hover:bg-primary/10 text-primary rounded-xl transition-all">
@@ -106,7 +104,7 @@ onMounted(fetchMyInvoices)
       </div>
     </div>
 
-    <!-- Simple Detail Modal (similar to admin) -->
+    <!-- Simple Detail Modal -->
     <div v-if="showDetail" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div class="bg-surface w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in">
         <div class="p-8 space-y-6">
@@ -116,11 +114,11 @@ onMounted(fetchMyInvoices)
           </div>
 
           <div class="space-y-4">
-            <div class="flex justify-between text-sm py-3 border-b border-border border-dashed" v-for="item in (selectedInvoice.items || [])" :key="item.id">
+            <div class="flex justify-between text-sm py-3 border-b border-border border-dashed" v-for="item in (selectedInvoice.items || selectedInvoice.details || [])" :key="item.id">
               <span class="text-text-secondary">{{ item.quantity }}x {{ item.description }}</span>
-              <span class="font-bold text-text-primary">${{ (item.unitPrice * item.quantity).toFixed(2) }}</span>
+              <span class="font-bold text-text-primary">${{ ( (item.unitPrice || item.unit_price || 0) * item.quantity).toFixed(2) }}</span>
             </div>
-            <div v-if="!selectedInvoice.items?.length" class="text-center py-4 italic text-text-secondary text-xs">
+            <div v-if="!(selectedInvoice.items || selectedInvoice.details)?.length" class="text-center py-4 italic text-text-secondary text-xs">
               Detalle no disponible (Solo visualización de reserva)
             </div>
           </div>
@@ -128,17 +126,17 @@ onMounted(fetchMyInvoices)
           <div class="bg-background rounded-2xl p-6 space-y-3">
             <div class="flex justify-between text-sm">
               <span class="text-text-secondary">Subtotal</span>
-              <span class="font-medium text-text-primary">${{ ((selectedInvoice.totalAmount || selectedInvoice.total || 0) / 1.15).toFixed(2) }}</span>
+              <span class="font-medium text-text-primary">${{ (selectedInvoice.subtotal || (selectedInvoice.total / 1.15) || 0).toFixed(2) }}</span>
             </div>
             <div class="flex justify-between text-sm">
               <span class="text-text-secondary">IVA (15%)</span>
-              <span class="font-medium text-text-primary">${{ ((selectedInvoice.totalAmount || selectedInvoice.total || 0) - ((selectedInvoice.totalAmount || selectedInvoice.total || 0) / 1.15)).toFixed(2) }}</span>
+              <span class="font-medium text-text-primary">${{ (selectedInvoice.taxAmount || selectedInvoice.tax_amount || 0).toFixed(2) }}</span>
             </div>
             <div class="flex justify-between text-2xl font-black pt-3 border-t border-border">
               <span class="text-text-primary">Total</span>
-              <span class="text-primary">${{ (selectedInvoice.totalAmount || selectedInvoice.total || 0).toFixed(2) }}</span>
+              <span class="text-primary">${{ (selectedInvoice.total || selectedInvoice.totalAmount || 0).toFixed(2) }}</span>
             </div>
-          </div>
+          </div>   </div>
 
           <div class="flex flex-col gap-3">
             <button @click="downloadPdf(selectedInvoice)" class="w-full py-4 bg-primary text-white font-black rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-3">
