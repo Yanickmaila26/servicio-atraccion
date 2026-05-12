@@ -84,7 +84,7 @@ onMounted(fetchMyInvoices)
             <h4 class="text-xl font-black text-text-primary">{{ inv.invoiceNumber || 'F-001-' + inv.id }}</h4>
           </div>
           <div class="text-right">
-            <p class="text-2xl font-black text-primary">${{ inv.totalAmount.toFixed(2) }}</p>
+            <p class="text-2xl font-black text-primary">${{ (inv.totalAmount || inv.total || 0).toFixed(2) }}</p>
             <p class="text-[10px] font-bold text-text-secondary uppercase">Total Pagado</p>
           </div>
         </div>
@@ -92,7 +92,7 @@ onMounted(fetchMyInvoices)
         <div class="grid grid-cols-2 gap-4 border-t border-border pt-4 mt-4">
           <div class="flex items-center gap-2">
             <CalendarDaysIcon class="h-4 w-4 text-text-secondary" />
-            <span class="text-sm font-medium text-text-secondary">{{ new Date(inv.createdAt).toLocaleDateString() }}</span>
+            <span class="text-sm font-medium text-text-secondary">{{ inv.createdAt ? new Date(inv.createdAt).toLocaleDateString() : 'N/A' }}</span>
           </div>
           <div class="flex justify-end gap-2">
             <button @click="openDetail(inv)" class="p-2 hover:bg-primary/10 text-primary rounded-xl transition-all">
@@ -116,24 +116,27 @@ onMounted(fetchMyInvoices)
           </div>
 
           <div class="space-y-4">
-            <div class="flex justify-between text-sm py-3 border-b border-border border-dashed" v-for="item in selectedInvoice.items" :key="item.id">
+            <div class="flex justify-between text-sm py-3 border-b border-border border-dashed" v-for="item in (selectedInvoice.items || [])" :key="item.id">
               <span class="text-text-secondary">{{ item.quantity }}x {{ item.description }}</span>
               <span class="font-bold text-text-primary">${{ (item.unitPrice * item.quantity).toFixed(2) }}</span>
+            </div>
+            <div v-if="!selectedInvoice.items?.length" class="text-center py-4 italic text-text-secondary text-xs">
+              Detalle no disponible (Solo visualización de reserva)
             </div>
           </div>
 
           <div class="bg-background rounded-2xl p-6 space-y-3">
             <div class="flex justify-between text-sm">
               <span class="text-text-secondary">Subtotal</span>
-              <span class="font-medium text-text-primary">${{ (selectedInvoice.totalAmount / 1.15).toFixed(2) }}</span>
+              <span class="font-medium text-text-primary">${{ ((selectedInvoice.totalAmount || selectedInvoice.total || 0) / 1.15).toFixed(2) }}</span>
             </div>
             <div class="flex justify-between text-sm">
               <span class="text-text-secondary">IVA (15%)</span>
-              <span class="font-medium text-text-primary">${{ (selectedInvoice.totalAmount - (selectedInvoice.totalAmount / 1.15)).toFixed(2) }}</span>
+              <span class="font-medium text-text-primary">${{ ((selectedInvoice.totalAmount || selectedInvoice.total || 0) - ((selectedInvoice.totalAmount || selectedInvoice.total || 0) / 1.15)).toFixed(2) }}</span>
             </div>
             <div class="flex justify-between text-2xl font-black pt-3 border-t border-border">
               <span class="text-text-primary">Total</span>
-              <span class="text-primary">${{ selectedInvoice.totalAmount.toFixed(2) }}</span>
+              <span class="text-primary">${{ (selectedInvoice.totalAmount || selectedInvoice.total || 0).toFixed(2) }}</span>
             </div>
           </div>
 

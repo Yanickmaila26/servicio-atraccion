@@ -35,6 +35,7 @@ const isExistingClient = ref(false)
 const form = ref({
   date: new Date().toISOString().split('T')[0],
   slotId: '',
+  clientId: null, // Nuevo: para vincular cliente existente
   clientName: 'Cliente General (POS)',
   clientEmail: 'pos@local.com',
   clientPhone: '',
@@ -47,19 +48,38 @@ const form = ref({
 const validateClient = async () => {
   if (!form.value.clientTaxId || form.value.clientTaxId.length < 10) {
     isExistingClient.value = false
+    form.value.clientId = null
     return
   }
 
   validatingClient.value = true
   try {
-    const client = await clientService.validate(form.value.clientTaxId)
+    const response = await clientService.validate(form.value.clientTaxId)
+    // El interceptor suele devolver directamente la data, pero verificamos ambos casos
+    const client = response.data || response 
+    
     if (client) {
-      form.value.clientName = client.fullName || client.name || form.value.clientName
+      // Caso A: El cliente ya existe
+      form.value.clientId = client.id
+      // Combinamos nombre y apellido para el input de visualización
+      form.value.clientName = `${client.firstName || ''} ${client.lastName || ''}`.trim() || client.fullName
       form.value.clientEmail = client.email || form.value.clientEmail
       form.value.clientAddress = client.address || form.value.clientAddress
       isExistingClient.value = true
+      
+      // Notificación rápida
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'info',
+        title: 'Datos de cliente cargados',
+        showConfirmButton: false,
+        timer: 2000
+      })
     } else {
+      // Caso B: Es un cliente nuevo
       isExistingClient.value = false
+      form.value.clientId = null
     }
   } catch (error) {
     console.error('Error al validar cliente:', error)
@@ -195,6 +215,7 @@ const registerSale = async () => {
   try {
     const payload = {
       slotId: form.value.slotId,
+      clientId: form.value.clientId, // Enviamos el ID si existe
       contactName: form.value.clientName || 'Cliente General',
       contactEmail: form.value.clientEmail || 'pos@local.com',
       notes: "Venta POS - " + form.value.paymentMethod,
