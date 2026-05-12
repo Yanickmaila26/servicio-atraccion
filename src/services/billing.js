@@ -19,7 +19,10 @@ export default {
 
   // Generar URL de descarga para el PDF
   getDownloadUrl(bookingId) {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://servicioatraccionapi20260428073304-c5fpe4fja8hvetc0.canadacentral-01.azurewebsites.net/api/v1/yanick-maila'
+    const baseUrl = (import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.startsWith('http'))
+      ? import.meta.env.VITE_API_BASE_URL 
+      : 'https://servicioatraccionapi20260428073304-c5fpe4fja8hvetc0.canadacentral-01.azurewebsites.net/api/v1/yanick-maila'
+    
     // IMPORTANTE: El endpoint real está en /booking/{id}/invoice/pdf (según AtraccionesBookingController)
     return `${baseUrl}/booking/${bookingId}/invoice/pdf`
   }

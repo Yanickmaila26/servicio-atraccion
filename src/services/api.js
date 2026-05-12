@@ -2,7 +2,10 @@ import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://servicioatraccionapi20260428073304-c5fpe4fja8hvetc0.canadacentral-01.azurewebsites.net/api/v1/yanick-maila', // URL de producción en Azure
+  // Aseguramos que si la variable está mal configurada o vacía, use el fallback limpio
+  baseURL: (import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.startsWith('http'))
+    ? import.meta.env.VITE_API_BASE_URL 
+    : 'https://servicioatraccionapi20260428073304-c5fpe4fja8hvetc0.canadacentral-01.azurewebsites.net/api/v1/yanick-maila',
   headers: {
     'Content-Type': 'application/json',
   }
