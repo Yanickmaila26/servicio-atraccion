@@ -5,7 +5,7 @@ export default {
   registerSale(data) {
     // Usamos el flujo de booking para registrar la venta
     // El backend identificará que es un Partner quien la realiza por el Token
-    return api.post('/Booking/create', {
+    return api.post('/Booking', {
       ...data,
       paymentMethod: data.paymentMethod || 'cash', // cash, card, transfer
       isPosSale: true,

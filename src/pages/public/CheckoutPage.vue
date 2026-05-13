@@ -47,6 +47,11 @@ function onlyLetters(e) {
   if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]$/.test(char)) e.preventDefault()
 }
 
+// Limpiar el número de documento al cambiar el tipo
+function onDocTypeChange(p) {
+  p.docNumber = ''
+}
+
 // Solo dígitos numéricos
 function onlyDigits(e) {
   if (!/\d/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
@@ -67,8 +72,10 @@ function validateDocInput(e, p) {
 
 // Formateo automático de número de tarjeta (XXXX XXXX XXXX XXXX)
 function formatCardNumber(e) {
-  let v = e.target.value.replace(/\D/g, '').slice(0, 16)
-  paymentForm.value.cardNumber = v.replace(/(\d{4})(?=\d)/g, '$1 ')
+  const digits = e.target.value.replace(/\D/g, '').slice(0, 16)
+  paymentForm.value.cardNumber = digits.replace(/(\d{4})(?=\d)/g, '$1 ')
+  // Forzar actualizar el DOM para que el cursor no salte
+  e.target.value = paymentForm.value.cardNumber
 }
 
 // Solo dígitos en tarjeta
@@ -80,12 +87,9 @@ function onlyDigitsCard(e) {
 
 // Formateo automático de fecha de vencimiento MM/AA
 function formatExpiry(e) {
-  const input = e.target
-  let v = input.value.replace(/\D/g, '').slice(0, 4)
-  if (v.length >= 3) {
-    v = v.slice(0, 2) + '/' + v.slice(2)
-  }
-  paymentForm.value.expiry = v
+  const digits = e.target.value.replace(/\D/g, '').slice(0, 4)
+  paymentForm.value.expiry = digits.length >= 3 ? digits.slice(0, 2) + '/' + digits.slice(2) : digits
+  e.target.value = paymentForm.value.expiry
 }
 
 // Solo dígitos en CVV
@@ -294,7 +298,7 @@ async function processPayment() {
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div class="space-y-1.5">
                 <label class="text-sm font-semibold text-text-primary ml-1">Tipo de Documento</label>
-                <select v-model="p.docType" class="w-full bg-background border border-border rounded-xl py-2.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                <select v-model="p.docType" @change="onDocTypeChange(p)" class="w-full bg-background border border-border rounded-xl py-2.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
                   <option>Cédula</option>
                   <option>Pasaporte</option>
                   <option>DNI</option>
@@ -375,7 +379,17 @@ async function processPayment() {
             </div>
 
             <div class="space-y-1">
-              <BaseInput label="Número de tarjeta" v-model="paymentForm.cardNumber" @input="formatCardNumber" @keydown="onlyDigitsCard" placeholder="1234 5678 9012 3456" maxlength="19" />
+              <label class="text-sm font-semibold text-text-primary ml-1">Número de tarjeta</label>
+              <input
+                type="text"
+                inputmode="numeric"
+                :value="paymentForm.cardNumber"
+                @input="formatCardNumber"
+                @keydown="onlyDigitsCard"
+                placeholder="1234 5678 9012 3456"
+                maxlength="19"
+                class="w-full bg-surface border border-border rounded-xl py-2.5 px-4 transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-text-secondary/50 text-text-primary"
+              />
               <p v-if="errors.card" class="text-xs text-red-500">{{ errors.card }}</p>
             </div>
             <div class="space-y-1">
@@ -384,11 +398,31 @@ async function processPayment() {
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-1">
-                <BaseInput label="Vencimiento" v-model="paymentForm.expiry" @input="formatExpiry" placeholder="MM/AA" maxlength="5" />
+                <label class="text-sm font-semibold text-text-primary ml-1">Vencimiento</label>
+                <input
+                  type="text"
+                  inputmode="numeric"
+                  :value="paymentForm.expiry"
+                  @input="formatExpiry"
+                  @keydown="onlyDigitsCard"
+                  placeholder="MM/AA"
+                  maxlength="5"
+                  class="w-full bg-surface border border-border rounded-xl py-2.5 px-4 transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-text-secondary/50 text-text-primary"
+                />
                 <p v-if="errors.expiry" class="text-xs text-red-500">{{ errors.expiry }}</p>
               </div>
               <div class="space-y-1">
-                <BaseInput label="CVV" v-model="paymentForm.cvv" type="password" @keydown="onlyDigitsCvv" placeholder="•••" maxlength="4" />
+                <label class="text-sm font-semibold text-text-primary ml-1">CVV</label>
+                <input
+                  type="password"
+                  inputmode="numeric"
+                  :value="paymentForm.cvv"
+                  @input="e => { paymentForm.cvv = e.target.value.replace(/\D/g, '').slice(0, 4) }"
+                  @keydown="onlyDigitsCvv"
+                  placeholder="•••"
+                  maxlength="4"
+                  class="w-full bg-surface border border-border rounded-xl py-2.5 px-4 transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-text-secondary/50 text-text-primary"
+                />
                 <p v-if="errors.cvv" class="text-xs text-red-500">{{ errors.cvv }}</p>
               </div>
             </div>

@@ -182,6 +182,11 @@ function openPaymentForm() {
   const forms = []
   const currentUser = authStore.user
 
+  // Normalizar nombre: soporta firstName/lastName o un solo campo 'name'
+  const userFirstName = currentUser?.firstName || (currentUser?.name ? currentUser.name.split(' ')[0] : '')
+  const userLastName  = currentUser?.lastName  || (currentUser?.name ? currentUser.name.split(' ').slice(1).join(' ') : '')
+  const userEmail     = currentUser?.email || ''
+
   if (selectedProduct.value.isPrivate) {
     // Tour Privado: un formulario por cada ticket individual
     selectedProduct.value.priceTiers
@@ -193,27 +198,27 @@ function openPaymentForm() {
             tierId: t.id,
             tierName: `${t.categoryName || 'Ticket'} #${i + 1}`,
             qty: 1,
-            firstName: i === 0 ? (currentUser?.firstName || '') : '',
-            lastName:  i === 0 ? (currentUser?.lastName  || '') : '',
+            firstName: i === 0 ? userFirstName : '',
+            lastName:  i === 0 ? userLastName  : '',
             docType:   'Cédula',
             docNumber: '',
-            email:     i === 0 ? (currentUser?.email || '') : 'n/a'
+            email:     i === 0 ? userEmail : 'n/a'
           })
         }
       })
   } else {
-    // Tour No Privado: un único formulario de contacto con el primer priceTier seleccionado
+    // Tour No Privado: un único formulario de contacto pre-llenado con datos del usuario
     const firstTier = selectedProduct.value.priceTiers.find(t => (ticketCounts.value[t.id] || 0) > 0)
     if (firstTier) {
       forms.push({
         tierId:    firstTier.id,
         tierName:  'Datos de Contacto',
         qty:       cartCount.value,
-        firstName: currentUser?.firstName || '',
-        lastName:  currentUser?.lastName  || '',
+        firstName: userFirstName,
+        lastName:  userLastName,
         docType:   'Cédula',
         docNumber: '',
-        email:     currentUser?.email || ''
+        email:     userEmail
       })
     }
   }
