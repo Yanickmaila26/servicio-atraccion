@@ -7,8 +7,8 @@ export default {
   },
 
   // Cliente: historial de reservas propias
-  getCustomerBookings() {
-    return api.get('/booking/mis-reservas')
+  getCustomerBookings(page = 1) {
+    return api.get('/admin-booking/user/history', { params: { page } })
   },
 
   getById(id) {
@@ -19,14 +19,14 @@ export default {
     return api.get(`/admin-booking/${pnr}`)
   },
 
-  // Crear reserva → POST /booking
+  // Crear reserva → POST /admin-booking
   create(data) {
-    return api.post('/booking', data)
+    return api.post('/admin-booking', data)
   },
 
-  // Cancelar → POST /booking/{id}/cancel
+  // Cancelar → POST /admin-booking/cancel
   cancel(id, reason = '') {
-    return api.post(`/booking/${id}/cancel`, { cancelReason: reason })
+    return api.post(`/admin-booking/cancel`, { bookingId: id, cancelReason: reason })
   }
 }
 
