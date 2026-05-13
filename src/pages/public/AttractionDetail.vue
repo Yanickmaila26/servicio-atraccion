@@ -667,8 +667,8 @@ onUnmounted(() => { if (leafletMap) { leafletMap.remove(); leafletMap = null } }
                             @click="selectedDate = group.date; selectedSlot = null"
                             class="flex-shrink-0 px-4 py-2 rounded-xl border text-center transition-all snap-start"
                             :class="selectedDate === group.date ? 'bg-primary border-primary text-white font-bold shadow-md' : 'bg-surface border-border text-text-primary hover:border-primary/50'">
-                            <div class="text-[10px] uppercase opacity-80">{{ new Date(group.date).toLocaleDateString('es-ES', { weekday: 'short' }) }}</div>
-                            <div class="text-sm font-bold">{{ new Date(group.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) }}</div>
+                            <div class="text-[10px] uppercase opacity-80">{{ new Date(group.date + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short' }) }}</div>
+                            <div class="text-sm font-bold">{{ new Date(group.date + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) }}</div>
                           </button>
                         </div>
 
