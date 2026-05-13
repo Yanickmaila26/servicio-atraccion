@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCheckoutStore } from '@/stores/checkout'
 import bookingService from '@/services/bookings'
@@ -23,13 +23,15 @@ onMounted(() => {
   }
 })
 
+// Acceso directo al estado del store (Pinia desenvuelve automáticamente los refs)
 const attraction = computed(() => checkoutStore.attraction)
 const slot = computed(() => checkoutStore.slot)
 const product = computed(() => checkoutStore.product)
 const cartItems = computed(() => checkoutStore.cartItems)
-const cartTotal = computed(() => cartItems.value.reduce((s, i) => s + i.subtotal, 0))
-const cartCount = computed(() => cartItems.value.reduce((s, i) => s + i.qty, 0))
-const passengerForms = computed(() => checkoutStore.passengerForms)
+const cartTotal = computed(() => checkoutStore.cartItems.reduce((s, i) => s + i.subtotal, 0))
+const cartCount = computed(() => checkoutStore.cartItems.reduce((s, i) => s + i.qty, 0))
+// passengerForms se accede DIRECTAMENTE (no como computed) para que v-model funcione
+const passengerForms = checkoutStore.passengerForms
 
 // Steps: 1 = Datos viajero, 2 = Pago
 const currentStep = ref(1)
@@ -70,26 +72,30 @@ function validateDocInput(e, p) {
   // Pasaporte: permite letras y números (sin símbolos especiales)
 }
 
-// Formateo automático de número de tarjeta (XXXX XXXX XXXX XXXX)
-function formatCardNumber(e) {
-  const digits = e.target.value.replace(/\D/g, '').slice(0, 16)
-  paymentForm.value.cardNumber = digits.replace(/(\d{4})(?=\d)/g, '$1 ')
-  // Forzar actualizar el DOM para que el cursor no salte
-  e.target.value = paymentForm.value.cardNumber
-}
+// Formateo reactivo con watchers (más robusto que eventos directos del DOM)
+watch(() => paymentForm.value.cardNumber, (newVal) => {
+  if (!newVal) return
+  const digits = newVal.replace(/\D/g, '').slice(0, 16)
+  const formatted = digits.replace(/(\d{4})(?=\d)/g, '$1 ')
+  if (newVal !== formatted) {
+    paymentForm.value.cardNumber = formatted
+  }
+})
 
-// Solo dígitos en tarjeta
+watch(() => paymentForm.value.expiry, (newVal) => {
+  if (!newVal) return
+  const digits = newVal.replace(/\D/g, '').slice(0, 4)
+  const formatted = digits.length >= 3 ? digits.slice(0, 2) + '/' + digits.slice(2) : digits
+  if (newVal !== formatted) {
+    paymentForm.value.expiry = formatted
+  }
+})
+
+// Solo dígitos en tarjeta (se mantiene para bloquear letras desde el teclado)
 function onlyDigitsCard(e) {
   if (!/\d/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
     e.preventDefault()
   }
-}
-
-// Formateo automático de fecha de vencimiento MM/AA
-function formatExpiry(e) {
-  const digits = e.target.value.replace(/\D/g, '').slice(0, 4)
-  paymentForm.value.expiry = digits.length >= 3 ? digits.slice(0, 2) + '/' + digits.slice(2) : digits
-  e.target.value = paymentForm.value.expiry
 }
 
 // Solo dígitos en CVV
@@ -383,8 +389,7 @@ async function processPayment() {
               <input
                 type="text"
                 inputmode="numeric"
-                :value="paymentForm.cardNumber"
-                @input="formatCardNumber"
+                v-model="paymentForm.cardNumber"
                 @keydown="onlyDigitsCard"
                 placeholder="1234 5678 9012 3456"
                 maxlength="19"
@@ -402,8 +407,7 @@ async function processPayment() {
                 <input
                   type="text"
                   inputmode="numeric"
-                  :value="paymentForm.expiry"
-                  @input="formatExpiry"
+                  v-model="paymentForm.expiry"
                   @keydown="onlyDigitsCard"
                   placeholder="MM/AA"
                   maxlength="5"
