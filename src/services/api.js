@@ -1,11 +1,18 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 
+// Aseguramos que la URL termine en /yanick-maila incluso si la variable de entorno está mal configurada
+let baseUrl = (import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.startsWith('http'))
+  ? import.meta.env.VITE_API_BASE_URL
+  : 'https://servicioatraccionapi20260428073304-c5fpe4fja8hvetc0.canadacentral-01.azurewebsites.net/api/v1/yanick-maila'
+
+if (!baseUrl.endsWith('/yanick-maila')) {
+  // Elimina slash final si existe antes de añadir yanick-maila
+  baseUrl = baseUrl.replace(/\/$/, '') + '/yanick-maila'
+}
+
 const api = axios.create({
-  // Aseguramos que si la variable está mal configurada o vacía, use el fallback limpio
-  baseURL: (import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.startsWith('http'))
-    ? import.meta.env.VITE_API_BASE_URL 
-    : 'https://servicioatraccionapi20260428073304-c5fpe4fja8hvetc0.canadacentral-01.azurewebsites.net/api/v1/yanick-maila',
+  baseURL: baseUrl,
   headers: {
     'Content-Type': 'application/json',
   }

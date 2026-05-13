@@ -30,8 +30,7 @@ const product = computed(() => checkoutStore.product)
 const cartItems = computed(() => checkoutStore.cartItems)
 const cartTotal = computed(() => checkoutStore.cartItems.reduce((s, i) => s + i.subtotal, 0))
 const cartCount = computed(() => checkoutStore.cartItems.reduce((s, i) => s + i.qty, 0))
-// passengerForms se accede DIRECTAMENTE (no como computed) para que v-model funcione
-const passengerForms = checkoutStore.passengerForms
+const passengerForms = computed(() => checkoutStore.passengerForms)
 
 // Steps: 1 = Datos viajero, 2 = Pago
 const currentStep = ref(1)
