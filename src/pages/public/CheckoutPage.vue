@@ -28,7 +28,10 @@ const attraction = computed(() => checkoutStore.attraction)
 const slot = computed(() => checkoutStore.slot)
 const product = computed(() => checkoutStore.product)
 const cartItems = computed(() => checkoutStore.cartItems)
-const cartTotal = computed(() => checkoutStore.cartItems.reduce((s, i) => s + i.subtotal, 0))
+const taxRate = parseFloat(import.meta.env.VITE_TAX_RATE || '0.15')
+const cartSubtotal = computed(() => checkoutStore.cartItems.reduce((s, i) => s + i.subtotal, 0))
+const cartTax = computed(() => cartSubtotal.value * taxRate)
+const cartTotal = computed(() => cartSubtotal.value + cartTax.value)
 const cartCount = computed(() => checkoutStore.cartItems.reduce((s, i) => s + i.qty, 0))
 const passengerForms = computed(() => checkoutStore.passengerForms)
 
@@ -485,9 +488,13 @@ async function processPayment() {
           </div>
 
           <div class="border-t border-border mt-4 pt-4 space-y-2">
-            <div v-for="item in cartItems" :key="item.tierId" class="flex justify-between text-sm">
-              <span class="text-text-secondary">{{ item.name }} × {{ item.qty }}</span>
-              <span class="font-bold text-text-primary">${{ item.subtotal.toFixed(2) }}</span>
+            <div class="flex justify-between text-sm">
+              <span class="text-text-secondary">Subtotal</span>
+              <span class="font-bold text-text-primary">${{ cartSubtotal.toFixed(2) }}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-text-secondary">IVA ({{ (taxRate * 100).toFixed(0) }}%)</span>
+              <span class="font-bold text-text-primary">${{ cartTax.toFixed(2) }}</span>
             </div>
           </div>
 
