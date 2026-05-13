@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import bookingService from '@/services/bookings'
+import billingService from '@/services/billing'
 import reviewService from '@/services/reviews'
 import BaseModal from '@/components/common/BaseModal.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -16,10 +17,12 @@ import {
   XCircleIcon,
   StarIcon,
   ChatBubbleBottomCenterTextIcon,
-  UserIcon
+  UserIcon,
+  DocumentArrowDownIcon
 } from '@heroicons/vue/24/outline'
 
 const bookings = ref([])
+const invoices = ref([])
 const loading = ref(true)
 
 const statusConfig = {
@@ -40,51 +43,34 @@ const submittingReview = ref(false)
 const fetchData = async () => {
   loading.value = true
   try {
-    const data = await bookingService.getCustomerBookings()
-    bookings.value = data.items || []
+    const [bookingsRes, invoicesRes] = await Promise.all([
+      bookingService.getUserHistory(),
+      billingService.getMyInvoices()
+    ])
+    
+    // Orden Ascendente (Más recientes al final)
+    bookings.value = (bookingsRes?.items || bookingsRes || []).sort((a, b) => {
+      return new Date(a.slotDate) - new Date(b.slotDate)
+    })
+    
+    invoices.value = invoicesRes || []
   } catch (error) {
-    console.error(error)
+    console.error('Error fetching history:', error)
   } finally {
     loading.value = false
   }
 }
 
-onMounted(fetchData)
-
-// Agrupar por Atracción + Fecha + Hora para evitar duplicados visuales si el usuario hizo varias reservas para lo mismo
-const groupedBookings = computed(() => {
-  const groups = {}
-  bookings.value.forEach(b => {
-    // Usamos el ID de la atracción o el nombre + fecha + hora como llave
-    const key = `${b.attractionName}-${b.slotDate}-${b.slotStartTime}`
-    if (!groups[key]) {
-      groups[key] = {
-        ...b,
-        pnrList: [b.pnrCode],
-        cancelPolicyHours: b.cancelPolicyHours,
-        // Clonamos tickets para no mutar el original
-        allTickets: b.tickets.map(t => ({ ...t }))
-      }
-    } else {
-      // Si ya existe, sumamos montos y pasajeros, y combinamos tickets
-      groups[key].totalAmount += b.totalAmount
-      groups[key].totalPassengers += b.totalPassengers
-      if (!groups[key].pnrList.includes(b.pnrCode)) {
-        groups[key].pnrList.push(b.pnrCode)
-      }
-      
-      b.tickets.forEach(t => {
-        const existing = groups[key].allTickets.find(et => et.categoryName === t.categoryName)
-        if (existing) {
-          existing.quantity += t.quantity
-        } else {
-          groups[key].allTickets.push({ ...t })
-        }
-      })
-    }
+const formatDateLocal = (dateStr) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr + 'T00:00:00')
+  return date.toLocaleDateString('es-ES', { 
+    weekday: 'short', 
+    day: 'numeric', 
+    month: 'short', 
+    year: 'numeric' 
   })
-  return Object.values(groups)
-})
+}
 
 const openReviewModal = (booking) => {
   selectedBooking.value = booking
@@ -97,23 +83,25 @@ const submitReview = async () => {
   submittingReview.value = true
   try {
     await reviewService.create({
-      bookingId: selectedBooking.value.id,
-      rating: reviewForm.value.rating,
-      comment: reviewForm.value.comment
+      pnrCode: selectedBooking.value.pnrCode,
+      overallRating: reviewForm.value.rating,
+      comment: reviewForm.value.comment,
+      title: 'Reseña desde Portal',
+      languageId: 1
     })
     showReviewModal.value = false
-    Swal.fire('¡Gracias!', 'Tu reseña ha sido publicada con éxito.', 'success')
+    Swal.fire('¡Gracias!', 'Tu reseña ha sido publicada.', 'success')
     fetchData()
   } catch (error) {
-    Swal.fire('Error', error.response?.data?.message || 'No se pudo publicar la reseña', 'error')
+    Swal.fire('Error', error.message || 'No se pudo publicar la reseña', 'error')
   } finally {
     submittingReview.value = false
   }
 }
 
 const isBookingClosed = (booking) => {
-  if (booking.statusId === 3) return true; // Completada
-  if (booking.statusId === 4) return false; // Cancelada no se puede reseñar
+  if (booking.statusId === 4) return false;
+  if (booking.statusId === 3) return true;
   const slotDate = new Date(`${booking.slotDate}T${booking.slotStartTime || '00:00:00'}`)
   return Date.now() > slotDate.getTime()
 }
@@ -121,132 +109,125 @@ const isBookingClosed = (booking) => {
 const canCancelBooking = (booking) => {
   if (booking.statusId !== 1 && booking.statusId !== 2) return false;
   if (isBookingClosed(booking)) return false;
+  
   const slotDate = new Date(`${booking.slotDate}T${booking.slotStartTime || '00:00:00'}`)
-  const policyHours = booking.cancelPolicyHours || 24 // Fallback 24h
+  const policyHours = booking.cancelPolicyHours || 24
   const cancelThreshold = new Date(slotDate.getTime() - (policyHours * 60 * 60 * 1000))
   return Date.now() <= cancelThreshold.getTime()
 }
 
-const cancelBookingGroup = async (booking) => {
+const cancelBooking = async (booking) => {
   const result = await Swal.fire({
     title: '¿Confirmar Cancelación?',
-    text: `¿Estás seguro de que deseas cancelar tu reserva de ${booking.totalPassengers} tickets para "${booking.attractionName}" el día ${booking.slotDate}? Esta acción no se puede deshacer.`,
+    text: `¿Estás seguro de que deseas cancelar la reserva ${booking.pnrCode}? Esta acción no se puede deshacer.`,
     icon: 'warning',
     showCancelButton: true,
     confirmButtonColor: '#ef4444',
-    cancelButtonColor: '#6b7280',
     confirmButtonText: 'Sí, Cancelar',
     cancelButtonText: 'No, mantener'
   })
 
   if (result.isConfirmed) {
     try {
-      // Cancelar todos los PNRs en este grupo
-      for (const pnr of booking.pnrList) {
-        await bookingService.cancel(pnr, 'Cancelado por el cliente desde portal')
-      }
+      await bookingService.cancel(booking.pnrCode, 'Cancelado por el cliente desde portal')
       Swal.fire('Cancelada', 'La reserva ha sido cancelada.', 'success')
       fetchData()
     } catch (error) {
-      Swal.fire('Error', error.response?.data?.message || 'Hubo un error al cancelar', 'error')
+      Swal.fire('Error', error.message || 'Hubo un error al cancelar', 'error')
     }
   }
 }
+
+const downloadPdf = (booking) => {
+  const invoice = invoices.value.find(i => i.bookingId === booking.id)
+  if (invoice) {
+    Swal.fire('Descargando...', `Factura #${invoice.invoiceNumber} generándose.`, 'info')
+  } else {
+    Swal.fire('Procesando', 'Tu comprobante se está generando en el sistema.', 'info')
+  }
+}
+
+onMounted(fetchData)
 </script>
 
 <template>
   <div class="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-4xl mx-auto">
       <header class="mb-10">
-        <h1 class="text-3xl font-extrabold text-text-primary tracking-tight">Mis Reservas</h1>
-        <p class="text-text-secondary mt-2">Gestiona tus próximos tours y revisa tu historial de aventuras.</p>
+        <h1 class="text-3xl font-black text-text-primary tracking-tight">Mis Reservaciones</h1>
+        <p class="text-text-secondary mt-2">Gestiona tus aventuras y revisa tus comprobantes.</p>
       </header>
 
-      <div v-if="loading" class="space-y-4">
-        <div v-for="i in 3" :key="i" class="h-32 bg-surface animate-pulse rounded-2xl border border-border"></div>
+      <div v-if="loading" class="space-y-6">
+        <div v-for="i in 3" :key="i" class="h-48 bg-surface animate-pulse rounded-3xl border border-border"></div>
       </div>
 
-      <div v-else-if="groupedBookings.length === 0" class="text-center py-20 bg-surface rounded-3xl border border-dashed border-border">
+      <div v-else-if="bookings.length === 0" class="text-center py-20 bg-surface rounded-3xl border-2 border-dashed border-border">
         <TicketIcon class="h-16 w-16 mx-auto text-text-secondary/20 mb-4" />
         <h2 class="text-xl font-bold text-text-primary">Aún no tienes reservas</h2>
-        <p class="text-text-secondary mt-2 mb-8">¿Listo para tu próxima aventura? Explora nuestras atracciones.</p>
-        <router-link to="/attractions" class="inline-flex items-center justify-center px-6 py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-all">
+        <p class="text-text-secondary mt-2 mb-8">¿Listo para tu próxima aventura?</p>
+        <router-link to="/attractions" class="inline-flex px-8 py-3 bg-primary text-white font-black rounded-2xl shadow-lg shadow-primary/20 hover:scale-105 transition-all">
           Explorar Atracciones
         </router-link>
       </div>
 
       <div v-else class="space-y-6">
-        <div v-for="booking in groupedBookings" :key="booking.id" 
-          class="bg-surface rounded-3xl border border-border overflow-hidden hover:shadow-soft transition-all group">
-          <div class="p-6 flex flex-col md:flex-row gap-6">
-            <!-- Info -->
-            <div class="flex-1">
-              <div class="flex items-center justify-between mb-2">
-                <div class="flex gap-2">
-                  <span v-for="pnr in booking.pnrList" :key="pnr" class="text-[10px] font-black uppercase tracking-widest text-text-secondary bg-background px-2 py-0.5 rounded border border-border">
-                    PNR: {{ pnr }}
-                  </span>
-                </div>
-                <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase flex items-center gap-1"
-                  :class="isBookingClosed(booking) ? 'bg-gray-100 text-gray-600' : (statusConfig[booking.statusId]?.color || 'bg-gray-100 text-gray-600')">
-                  <component :is="isBookingClosed(booking) ? XCircleIcon : (statusConfig[booking.statusId]?.icon || PendingIcon)" class="h-3 w-3" />
-                  {{ isBookingClosed(booking) ? 'Cerrada' : (booking.statusName || 'Desconocido') }}
+        <div v-for="booking in bookings" :key="booking.id" 
+          class="bg-surface rounded-3xl border border-border overflow-hidden hover:shadow-md transition-all group">
+          <div class="flex flex-col md:flex-row">
+            <!-- Left Image -->
+            <div class="md:w-1/3 relative h-48 md:h-auto overflow-hidden bg-gray-100">
+              <img :src="booking.attractionImage || 'https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&q=80'" 
+                class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-all duration-700" />
+              <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+              <div class="absolute bottom-4 left-4">
+                <span class="px-2 py-1 bg-white/20 backdrop-blur-md rounded-lg text-[10px] font-black text-white uppercase tracking-widest border border-white/30">
+                  PNR: {{ booking.pnrCode }}
                 </span>
-              </div>
-              
-              <h3 class="text-2xl font-black text-text-primary mb-1">{{ booking.attractionName }}</h3>
-              <p class="text-sm text-primary font-bold mb-4">{{ booking.productTitle || 'Tour Estándar' }}</p>
-
-              <div class="flex flex-wrap gap-4 mb-6">
-                <div class="flex items-center gap-2 text-sm font-bold text-text-secondary">
-                  <CalendarIcon class="h-4 w-4 text-primary" />
-                  <span>{{ booking.slotDate }}</span>
-                </div>
-                <div class="flex items-center gap-2 text-sm font-bold text-text-secondary">
-                  <ClockIcon class="h-4 w-4 text-primary" />
-                  <span>{{ booking.slotStartTime }}</span>
-                </div>
-              </div>
-
-              <!-- Tickets Detail -->
-              <div class="bg-background rounded-2xl p-4 border border-border space-y-2">
-                <div class="text-[10px] font-black text-text-secondary uppercase mb-2">Tickets Adquiridos</div>
-                <div v-for="ticket in booking.allTickets" :key="ticket.categoryName" class="flex justify-between items-center text-sm">
-                  <div class="flex items-center gap-2">
-                    <div class="w-5 h-5 rounded bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary">{{ ticket.quantity }}</div>
-                    <span class="font-bold text-text-primary">{{ ticket.categoryName }}</span>
-                  </div>
-                  <span class="text-text-secondary">${{ ticket.unitPrice.toFixed(2) }} c/u</span>
-                </div>
               </div>
             </div>
 
-            <!-- Actions / Price -->
-            <div class="flex flex-col justify-between items-end border-t md:border-t-0 md:border-l border-border pt-4 md:pt-0 md:pl-6 min-w-[160px]">
-              <div class="text-right w-full">
-                <div class="text-[10px] font-black text-text-secondary uppercase">Monto Total</div>
-                <div class="text-3xl font-black text-primary">${{ booking.totalAmount?.toFixed(2) }}</div>
-                <div class="text-[10px] text-text-secondary mt-1">{{ booking.totalPassengers }} viajeros en total</div>
+            <!-- Right Content -->
+            <div class="flex-1 p-6 md:p-8">
+              <div class="flex justify-between items-start mb-4">
+                <div>
+                  <h3 class="text-xl font-black text-text-primary leading-tight">{{ booking.attractionName }}</h3>
+                  <p class="text-xs font-bold text-primary mt-1">{{ booking.productTitle || 'Tour Estándar' }}</p>
+                </div>
+                <div class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5"
+                  :class="statusConfig[booking.statusId]?.color || 'bg-gray-100 text-gray-700'">
+                  <component :is="statusConfig[booking.statusId]?.icon || PendingIcon" class="h-3 w-3" />
+                  {{ booking.statusName }}
+                </div>
               </div>
-              
-              <div class="flex flex-col gap-2 w-full mt-6">
-                <button 
-                  v-if="isBookingClosed(booking)"
+
+              <div class="grid grid-cols-2 gap-6 py-6 border-y border-border mb-6">
+                <div class="space-y-1">
+                  <div class="text-[10px] font-black text-text-secondary uppercase">Fecha y Hora (Local)</div>
+                  <div class="text-sm font-bold text-text-primary">{{ formatDateLocal(booking.slotDate) }}</div>
+                  <div class="text-xs text-text-secondary">{{ booking.slotStartTime?.substring(0,5) }} h</div>
+                </div>
+                <div class="space-y-1 text-right md:text-left">
+                  <div class="text-[10px] font-black text-text-secondary uppercase">Monto Total</div>
+                  <div class="text-xl font-black text-primary">${{ booking.totalAmount?.toFixed(2) }} <span class="text-[10px] text-text-secondary uppercase">{{ booking.currencyCode }}</span></div>
+                  <div class="text-[10px] text-text-secondary">{{ booking.details?.length || 1 }} ticket(s) adquiridos</div>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap gap-3">
+                <button v-if="canCancelBooking(booking)" 
+                  @click="cancelBooking(booking)"
+                  class="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-black border border-red-100 hover:bg-red-600 hover:text-white transition-all">
+                  Cancelar Reserva
+                </button>
+                <button v-if="isBookingClosed(booking) && booking.statusId !== 4" 
                   @click="openReviewModal(booking)"
-                  class="flex items-center justify-center gap-2 px-4 py-3 bg-yellow-400 text-yellow-950 rounded-xl text-sm font-black hover:bg-yellow-500 transition-all shadow-sm"
-                >
-                  <StarIcon class="h-4 w-4 fill-yellow-950" /> Dejar reseña
+                  class="px-4 py-2 bg-yellow-400 text-yellow-950 rounded-xl text-xs font-black hover:bg-yellow-500 transition-all shadow-sm">
+                  Dejar Reseña
                 </button>
-                <button
-                  v-if="canCancelBooking(booking)"
-                  @click="cancelBookingGroup(booking)"
-                  class="flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-bold hover:bg-red-100 transition-all shadow-sm"
-                >
-                  <XCircleIcon class="h-4 w-4" /> Cancelar Reserva
+                <button @click="downloadPdf(booking)" class="p-2 bg-background border border-border rounded-xl hover:bg-surface transition-all" title="Ver Comprobante">
+                  <DocumentArrowDownIcon class="h-5 w-5 text-text-secondary" />
                 </button>
-                <router-link :to="`/attractions/${booking.attractionSlug}`" class="flex items-center justify-center gap-2 px-4 py-3 bg-surface border border-border rounded-xl text-sm font-bold text-text-primary hover:bg-background transition-all">
-                  Ver Atracción <ChevronRightIcon class="h-4 w-4" />
-                </router-link>
               </div>
             </div>
           </div>
