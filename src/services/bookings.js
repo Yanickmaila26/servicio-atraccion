@@ -25,8 +25,8 @@ export default {
   },
 
   // Cancelar → POST /admin-booking/cancel
-  cancel(id, reason = '') {
-    return api.post(`/admin-booking/cancel`, { bookingId: id, cancelReason: reason })
+  cancel(pnr, reason = '') {
+    return api.post(`/admin-booking/cancel`, { pnrCode: pnr, cancelReason: reason })
   }
 }
 

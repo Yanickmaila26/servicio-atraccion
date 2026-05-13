@@ -26,9 +26,19 @@ const fetchMyInvoices = async () => {
   }
 }
 
-const openDetail = (invoice) => {
+const fetchingDetail = ref(false)
+const openDetail = async (invoice) => {
+  fetchingDetail.value = true
   selectedInvoice.value = invoice
   showDetail.value = true
+  try {
+    const fullInvoice = await billingService.getById(invoice.id)
+    selectedInvoice.value = fullInvoice
+  } catch (error) {
+    console.error("Error al obtener detalle de factura:", error)
+  } finally {
+    fetchingDetail.value = false
+  }
 }
 
 const downloadPdf = (invoice) => {
@@ -115,13 +125,21 @@ onMounted(fetchMyInvoices)
           </div>
 
           <div class="space-y-4">
-            <div class="flex justify-between text-sm py-3 border-b border-border border-dashed" v-for="item in (selectedInvoice.items || selectedInvoice.details || [])" :key="item.id">
-              <span class="text-text-secondary">{{ item.quantity }}x {{ item.description }}</span>
-              <span class="font-bold text-text-primary">${{ ( (item.unitPrice || item.unit_price || 0) * item.quantity).toFixed(2) }}</span>
+            <!-- Loading State -->
+            <div v-if="fetchingDetail" class="flex flex-col items-center justify-center py-10 space-y-4">
+              <div class="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full"></div>
+              <p class="text-xs font-bold text-text-secondary animate-pulse uppercase tracking-widest">Cargando detalles...</p>
             </div>
-            <div v-if="!(selectedInvoice.items || selectedInvoice.details)?.length" class="text-center py-4 italic text-text-secondary text-xs">
-              Detalle no disponible (Solo visualización de reserva)
-            </div>
+
+            <template v-else>
+              <div class="flex justify-between text-sm py-3 border-b border-border border-dashed" v-for="item in (selectedInvoice.items || selectedInvoice.details || [])" :key="item.id">
+                <span class="text-text-secondary">{{ item.quantity }}x {{ item.description }}</span>
+                <span class="font-bold text-text-primary">${{ ( (item.unitPrice || item.unit_price || 0) * item.quantity).toFixed(2) }}</span>
+              </div>
+              <div v-if="!(selectedInvoice.items || selectedInvoice.details)?.length" class="text-center py-4 italic text-text-secondary text-xs">
+                Detalle no disponible (Solo visualización de reserva)
+              </div>
+            </template>
           </div>
 
           <div class="bg-background rounded-2xl p-6 space-y-3">
