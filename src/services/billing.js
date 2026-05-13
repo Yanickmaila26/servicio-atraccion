@@ -9,7 +9,7 @@ export default {
   // Obtener facturas del cliente autenticado
   getMyInvoices() {
     // Si no existe un endpoint de "my-invoices" en Billing, podemos intentar obtenerlo de Booking
-    return api.get('/billing/my-invoices').catch(() => api.get('/booking/user/history'))
+    return api.get('/billing/my-invoices').catch(() => api.get('/booking/mis-reservas'))
   },
 
   // Obtener detalle de una factura específica
