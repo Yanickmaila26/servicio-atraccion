@@ -17,7 +17,8 @@ const fetchMyInvoices = async () => {
   loading.value = true
   try {
     const data = await billingService.getMyInvoices()
-    invoices.value = data || []
+    // Si viene de user/history es PagedResult (data.items), si no es un array directo
+    invoices.value = data?.items ? data.items : (Array.isArray(data) ? data : [])
   } catch (error) {
     console.error(error)
   } finally {

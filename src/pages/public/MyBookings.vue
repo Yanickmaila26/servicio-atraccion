@@ -112,16 +112,18 @@ const submitReview = async () => {
 }
 
 const isBookingClosed = (booking) => {
-  if (booking.statusId === 3 || booking.statusId === 4) return false; // Ya completada o cancelada
-  const slotDate = new Date(`${booking.slotDate}T${booking.slotStartTime}`)
+  if (booking.statusId === 3) return true; // Completada
+  if (booking.statusId === 4) return false; // Cancelada no se puede reseñar
+  const slotDate = new Date(`${booking.slotDate}T${booking.slotStartTime || '00:00:00'}`)
   return Date.now() > slotDate.getTime()
 }
 
 const canCancelBooking = (booking) => {
   if (booking.statusId !== 1 && booking.statusId !== 2) return false;
   if (isBookingClosed(booking)) return false;
-  const slotDate = new Date(`${booking.slotDate}T${booking.slotStartTime}`)
-  const cancelThreshold = new Date(slotDate.getTime() - (booking.cancelPolicyHours * 60 * 60 * 1000))
+  const slotDate = new Date(`${booking.slotDate}T${booking.slotStartTime || '00:00:00'}`)
+  const policyHours = booking.cancelPolicyHours || 24 // Fallback 24h
+  const cancelThreshold = new Date(slotDate.getTime() - (policyHours * 60 * 60 * 1000))
   return Date.now() <= cancelThreshold.getTime()
 }
 
@@ -229,7 +231,7 @@ const cancelBookingGroup = async (booking) => {
               
               <div class="flex flex-col gap-2 w-full mt-6">
                 <button 
-                  v-if="booking.canReview"
+                  v-if="isBookingClosed(booking)"
                   @click="openReviewModal(booking)"
                   class="flex items-center justify-center gap-2 px-4 py-3 bg-yellow-400 text-yellow-950 rounded-xl text-sm font-black hover:bg-yellow-500 transition-all shadow-sm"
                 >

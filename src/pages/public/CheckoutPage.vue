@@ -221,13 +221,14 @@ async function processPayment() {
       statusId: 2
     })
 
+    const attractionName = attraction.value?.name || 'la atracción'
     checkoutStore.clear()
 
     await Swal.fire({
       icon: 'success',
       title: '¡Reserva Confirmada!',
       html: `<b>PNR: ${booking.pnrCode || 'Confirmado'}</b><br>
-             Tu experiencia en <b>${attraction.value?.name}</b> está reservada.<br>
+             Tu experiencia en <b>${attractionName}</b> está reservada.<br>
              Revisa tu correo en <b>${payload.contactEmail}</b>.`,
       confirmButtonColor: '#3b82f6',
       confirmButtonText: 'Ver mis reservas'
