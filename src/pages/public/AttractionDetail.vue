@@ -178,20 +178,45 @@ function openPaymentForm() {
     return
   }
 
-  // Build passenger forms per tier
+  // Build passenger forms
   const forms = []
-  selectedProduct.value.priceTiers
-    .filter(t => (ticketCounts.value[t.id] || 0) > 0)
-    .forEach(t => {
-      const qty = ticketCounts.value[t.id]
-      if (selectedProduct.value.isPrivate) {
+  const currentUser = authStore.user
+
+  if (selectedProduct.value.isPrivate) {
+    // Tour Privado: un formulario por cada ticket individual
+    selectedProduct.value.priceTiers
+      .filter(t => (ticketCounts.value[t.id] || 0) > 0)
+      .forEach(t => {
+        const qty = ticketCounts.value[t.id]
         for (let i = 0; i < qty; i++) {
-          forms.push({ tierId: t.id, tierName: `${t.categoryName || 'Ticket'} #${i + 1}`, qty: 1, firstName: '', lastName: '', docType: 'Pasaporte', docNumber: '', email: i === 0 ? '' : 'n/a' })
+          forms.push({
+            tierId: t.id,
+            tierName: `${t.categoryName || 'Ticket'} #${i + 1}`,
+            qty: 1,
+            firstName: i === 0 ? (currentUser?.firstName || '') : '',
+            lastName:  i === 0 ? (currentUser?.lastName  || '') : '',
+            docType:   'Cédula',
+            docNumber: '',
+            email:     i === 0 ? (currentUser?.email || '') : 'n/a'
+          })
         }
-      } else {
-        forms.push({ tierId: t.id, tierName: t.categoryName || 'Ticket', qty, firstName: '', lastName: '', docType: 'Pasaporte', docNumber: '', email: forms.length === 0 ? '' : 'n/a' })
-      }
-    })
+      })
+  } else {
+    // Tour No Privado: un único formulario de contacto con el primer priceTier seleccionado
+    const firstTier = selectedProduct.value.priceTiers.find(t => (ticketCounts.value[t.id] || 0) > 0)
+    if (firstTier) {
+      forms.push({
+        tierId:    firstTier.id,
+        tierName:  'Datos de Contacto',
+        qty:       cartCount.value,
+        firstName: currentUser?.firstName || '',
+        lastName:  currentUser?.lastName  || '',
+        docType:   'Cédula',
+        docNumber: '',
+        email:     currentUser?.email || ''
+      })
+    }
+  }
 
   // Save to checkout store and navigate
   const checkoutStore = useCheckoutStore()

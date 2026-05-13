@@ -23,6 +23,30 @@ export const useAuthStore = defineStore('auth', () => {
   const isClient = computed(() => user.value?.roles?.includes('Client'))
   const canAccessAdmin = computed(() => isAdmin.value || isPartner.value)
 
+  // ── JWT Expiry Validation ────────────────────────────────────────────────
+  function isTokenExpired() {
+    if (!token.value) return true
+    try {
+      // Decode payload (middle segment of JWT, base64url → base64 → JSON)
+      const base64Url = token.value.split('.')[1]
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+      const payload = JSON.parse(atob(base64))
+      if (!payload.exp) return false
+      // exp is in seconds, Date.now() is in ms
+      return Date.now() >= payload.exp * 1000
+    } catch {
+      return true // malformed token → treat as expired
+    }
+  }
+
+  function checkAndAutoLogout() {
+    if (token.value && isTokenExpired()) {
+      logout()
+      return true // indicates logout was triggered
+    }
+    return false
+  }
+
   async function login(credentials) {
     try {
       const response = await api.post('/auth/login', credentials)
@@ -75,6 +99,8 @@ export const useAuthStore = defineStore('auth', () => {
     isPartner, 
     isClient,
     canAccessAdmin,
+    isTokenExpired,
+    checkAndAutoLogout,
     login, 
     loginAdmin,
     register,

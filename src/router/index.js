@@ -144,16 +144,30 @@ const routes = [
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  // Siempre volver al top al navegar
+  scrollBehavior() {
+    return { top: 0, behavior: 'smooth' }
+  }
 })
 
-// Navigation Guard simple (se adaptará a la lógica del API)
+// Navigation Guard con validación de token JWT
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
   
+  // Verificar si el token expiró antes de cada navegación
+  const wasLoggedOut = authStore.checkAndAutoLogout()
+
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    // next({ name: 'Login' })
-    next() // Temporalmente permitido para desarrollo visual
+    // Redirigir al login correcto según la ruta
+    if (to.path.startsWith('/admin')) {
+      next({ name: 'AdminLogin' })
+    } else {
+      next({ name: 'Login' })
+    }
+  } else if (wasLoggedOut && to.meta.requiresAuth) {
+    // Token expiró y la ruta requiere auth: redirigir con mensaje
+    next({ name: 'Login', query: { expired: '1' } })
   } else {
     next()
   }

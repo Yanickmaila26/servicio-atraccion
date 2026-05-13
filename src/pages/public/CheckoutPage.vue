@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useCheckoutStore } from '@/stores/checkout'
 import bookingService from '@/services/bookings'
 import paymentService from '@/services/payments'
@@ -15,8 +15,9 @@ import {
 const router = useRouter()
 const checkoutStore = useCheckoutStore()
 
-// If no checkout data, redirect back
+// Scroll al top al cargar (fix: la página no debe aparecer al fondo)
 onMounted(() => {
+  window.scrollTo({ top: 0, behavior: 'instant' })
   if (!checkoutStore.attraction || !checkoutStore.slot) {
     router.push('/attractions')
   }
@@ -35,39 +36,106 @@ const currentStep = ref(1)
 const processingPayment = ref(false)
 const errors = ref({})
 
-const paymentMethod = ref('card') // 'card' | 'paypal'
+const paymentMethod = ref('card')
 const paymentForm = ref({ cardNumber: '', expiry: '', cvv: '', cardName: '' })
 
 // ── Validation helpers ──────────────────────────────────────────────────────
+
+// Solo letras y espacios (sin números ni símbolos)
 function onlyLetters(e) {
   const char = String.fromCharCode(e.charCode)
-  if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]$/.test(char)) e.preventDefault()
+  if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]$/.test(char)) e.preventDefault()
 }
 
+// Solo dígitos numéricos
+function onlyDigits(e) {
+  if (!/\d/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+    e.preventDefault()
+  }
+}
+
+// Validación dinámica del campo de documento según tipo
+function validateDocInput(e, p) {
+  if (p.docType === 'Cédula' || p.docType === 'DNI') {
+    // Solo números
+    if (!/\d/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault()
+    }
+  }
+  // Pasaporte: permite letras y números (sin símbolos especiales)
+}
+
+// Formateo automático de número de tarjeta (XXXX XXXX XXXX XXXX)
 function formatCardNumber(e) {
   let v = e.target.value.replace(/\D/g, '').slice(0, 16)
   paymentForm.value.cardNumber = v.replace(/(\d{4})(?=\d)/g, '$1 ')
 }
 
+// Solo dígitos en tarjeta
+function onlyDigitsCard(e) {
+  if (!/\d/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+    e.preventDefault()
+  }
+}
+
+// Formateo automático de fecha de vencimiento MM/AA
 function formatExpiry(e) {
-  let v = e.target.value.replace(/\D/g, '').slice(0, 4)
-  if (v.length >= 3) v = v.slice(0, 2) + '/' + v.slice(2)
+  const input = e.target
+  let v = input.value.replace(/\D/g, '').slice(0, 4)
+  if (v.length >= 3) {
+    v = v.slice(0, 2) + '/' + v.slice(2)
+  }
   paymentForm.value.expiry = v
+}
+
+// Solo dígitos en CVV
+function onlyDigitsCvv(e) {
+  if (!/\d/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+    e.preventDefault()
+  }
 }
 
 function clearError(field) { delete errors.value[field] }
 
 function validatePassengers() {
   const e = {}
-  const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/
+  // Nombre: solo letras, sin números ni caracteres especiales peligrosos
+  const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]{2,}$/
+  // Email estricto: bloquea caracteres de inyección SQL/XSS
+  const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/
+
   passengerForms.value.forEach((p, i) => {
-    if (!p.firstName.trim()) e[`fn_${i}`] = 'Nombre requerido'
-    else if (!nameRegex.test(p.firstName)) e[`fn_${i}`] = 'Solo letras'
-    if (!p.lastName.trim()) e[`ln_${i}`] = 'Apellido requerido'
-    else if (!nameRegex.test(p.lastName)) e[`ln_${i}`] = 'Solo letras'
-    if (!p.docNumber.trim()) e[`dn_${i}`] = 'Documento requerido'
-    if (i === 0 && (!p.email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email))) {
-      e[`em_${i}`] = 'Email de contacto requerido'
+    if (!p.firstName.trim()) {
+      e[`fn_${i}`] = 'Nombre requerido'
+    } else if (!nameRegex.test(p.firstName.trim())) {
+      e[`fn_${i}`] = 'Solo letras, sin números ni símbolos'
+    }
+
+    if (!p.lastName.trim()) {
+      e[`ln_${i}`] = 'Apellido requerido'
+    } else if (!nameRegex.test(p.lastName.trim())) {
+      e[`ln_${i}`] = 'Solo letras, sin números ni símbolos'
+    }
+
+    if (!p.docNumber.trim()) {
+      e[`dn_${i}`] = 'Documento requerido'
+    } else if (p.docType === 'Cédula' || p.docType === 'DNI') {
+      if (!/^\d{10}$/.test(p.docNumber.trim())) {
+        e[`dn_${i}`] = 'La Cédula debe tener exactamente 10 dígitos numéricos'
+      }
+    } else if (p.docType === 'Pasaporte') {
+      if (!/^[A-Z0-9]{6,12}$/i.test(p.docNumber.trim())) {
+        e[`dn_${i}`] = 'Pasaporte inválido (6-12 caracteres alfanuméricos)'
+      }
+    }
+
+    // Email solo requerido para el primer pasajero
+    if (p.email !== 'n/a') {
+      if (!p.email?.trim()) {
+        e[`em_${i}`] = 'Email de contacto requerido'
+      } else if (!emailRegex.test(p.email.trim())) {
+        e[`em_${i}`] = 'Formato de email inválido'
+      }
     }
   })
   errors.value = e
@@ -78,19 +146,26 @@ function validatePayment() {
   const e = {}
   if (paymentMethod.value === 'card') {
     const raw = paymentForm.value.cardNumber.replace(/\s/g, '')
-    if (raw.length < 16) e.card = 'Número de tarjeta inválido'
+    if (!/^\d{16}$/.test(raw)) e.card = 'Número de tarjeta inválido (16 dígitos)'
+
     if (!paymentForm.value.cardName.trim()) e.cardName = 'Nombre en tarjeta requerido'
+
     if (!/^\d{2}\/\d{2}$/.test(paymentForm.value.expiry)) {
-      e.expiry = 'Formato MM/AA'
+      e.expiry = 'Formato inválido (MM/AA)'
     } else {
       const [mm, aa] = paymentForm.value.expiry.split('/').map(Number)
       const now = new Date()
       const curMonth = now.getMonth() + 1
       const curYear = Number(now.getFullYear().toString().slice(-2))
-      if (mm < 1 || mm > 12) e.expiry = 'Mes inválido'
-      else if (aa < curYear || (aa === curYear && mm < curMonth)) e.expiry = 'Tarjeta vencida'
+      if (mm < 1 || mm > 12) {
+        e.expiry = 'Mes inválido (01-12)'
+      } else if (aa < curYear || (aa === curYear && mm < curMonth)) {
+        e.expiry = 'La tarjeta está vencida'
+      }
     }
-    if (paymentForm.value.cvv.length < 3) e.cvv = 'CVV inválido'
+
+    const cvvRaw = paymentForm.value.cvv.replace(/\D/g, '')
+    if (cvvRaw.length < 3 || cvvRaw.length > 4) e.cvv = 'CVV inválido (3-4 dígitos)'
   }
   errors.value = e
   return Object.keys(e).length === 0
@@ -122,13 +197,8 @@ async function processPayment() {
     }
     const booking = await bookingService.create(payload)
 
-    // Simulate external payment gateway (replace with PayPal/Stripe SDK call)
     await new Promise(r => setTimeout(r, 1500))
     const fakeExternalId = 'pi_' + Math.random().toString(36).substr(2, 9)
-
-    // TODO: Replace with actual PayPal/Stripe API integration
-    // const paypalOrder = await paypalService.createOrder({ amount: cartTotal.value, currency: 'USD' })
-    // const paypalCapture = await paypalService.captureOrder(paypalOrder.id)
 
     await paymentService.create({
       bookingId: booking.id,
@@ -225,13 +295,20 @@ async function processPayment() {
               <div class="space-y-1.5">
                 <label class="text-sm font-semibold text-text-primary ml-1">Tipo de Documento</label>
                 <select v-model="p.docType" class="w-full bg-background border border-border rounded-xl py-2.5 px-4 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                  <option>Pasaporte</option>
                   <option>Cédula</option>
+                  <option>Pasaporte</option>
                   <option>DNI</option>
                 </select>
               </div>
               <div class="space-y-1">
-                <BaseInput label="Número de Documento" v-model="p.docNumber" required />
+                <BaseInput 
+                  :label="'Número de Documento'"
+                  v-model="p.docNumber"
+                  :maxlength="p.docType === 'Cédula' || p.docType === 'DNI' ? 10 : 12"
+                  :placeholder="p.docType === 'Cédula' ? '10 dígitos' : p.docType === 'Pasaporte' ? 'Ej: AB1234567' : ''"
+                  @keydown="validateDocInput($event, p)"
+                  required
+                />
                 <p v-if="errors[`dn_${i}`]" class="text-xs text-red-500">{{ errors[`dn_${i}`] }}</p>
               </div>
             </div>
@@ -298,7 +375,7 @@ async function processPayment() {
             </div>
 
             <div class="space-y-1">
-              <BaseInput label="Número de tarjeta" v-model="paymentForm.cardNumber" @input="formatCardNumber" placeholder="1234 5678 9012 3456" maxlength="19" />
+              <BaseInput label="Número de tarjeta" v-model="paymentForm.cardNumber" @input="formatCardNumber" @keydown="onlyDigitsCard" placeholder="1234 5678 9012 3456" maxlength="19" />
               <p v-if="errors.card" class="text-xs text-red-500">{{ errors.card }}</p>
             </div>
             <div class="space-y-1">
@@ -311,7 +388,7 @@ async function processPayment() {
                 <p v-if="errors.expiry" class="text-xs text-red-500">{{ errors.expiry }}</p>
               </div>
               <div class="space-y-1">
-                <BaseInput label="CVV" v-model="paymentForm.cvv" type="password" placeholder="•••" maxlength="4" />
+                <BaseInput label="CVV" v-model="paymentForm.cvv" type="password" @keydown="onlyDigitsCvv" placeholder="•••" maxlength="4" />
                 <p v-if="errors.cvv" class="text-xs text-red-500">{{ errors.cvv }}</p>
               </div>
             </div>

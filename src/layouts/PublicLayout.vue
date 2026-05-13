@@ -2,7 +2,7 @@
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useDark, useToggle } from '@vueuse/core'
-import { SunIcon, MoonIcon, UserIcon, ArrowRightOnRectangleIcon, TicketIcon } from '@heroicons/vue/24/outline'
+import { SunIcon, MoonIcon, UserIcon, ArrowRightOnRectangleIcon, TicketIcon, DocumentTextIcon } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
 const authStore = useAuthStore()
