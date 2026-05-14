@@ -375,7 +375,7 @@ onMounted(fetchInitialData)
           
           <div class="space-y-4 mb-8">
             <BaseInput label="Nombre del Cliente" v-model="form.clientName" />
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div class="relative">
                 <BaseInput 
                   label="RUC / Cédula" 
@@ -394,7 +394,7 @@ onMounted(fetchInitialData)
             
             <div class="space-y-2 pt-4">
               <label class="text-xs font-bold text-text-secondary uppercase">Método de Pago Local</label>
-              <div class="grid grid-cols-2 gap-2">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button 
                   @click="form.paymentMethod = 'cash'"
                   class="flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-bold transition-all"

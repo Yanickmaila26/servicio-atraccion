@@ -91,6 +91,47 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('user')
   }
 
+  async function updateProfile(data) {
+    try {
+      const response = await api.put('/auth/profile', data)
+      // Update local user data if successful
+      if (response.user) {
+        user.value = { ...user.value, ...response.user }
+        localStorage.setItem('user', JSON.stringify(user.value))
+      }
+      return response
+    } catch (error) {
+      throw error
+    }
+  }
+
+  async function changePassword(data) {
+    try {
+      const response = await api.put('/auth/change-password', data)
+      return response
+    } catch (error) {
+      throw error
+    }
+  }
+
+  async function forgotPassword(email) {
+    try {
+      const response = await api.post('/auth/forgot-password', { email })
+      return response
+    } catch (error) {
+      throw error
+    }
+  }
+
+  async function resetPassword(data) {
+    try {
+      const response = await api.post('/auth/reset-password', data)
+      return response
+    } catch (error) {
+      throw error
+    }
+  }
+
   return { 
     token, 
     user, 
@@ -104,6 +145,10 @@ export const useAuthStore = defineStore('auth', () => {
     login, 
     loginAdmin,
     register,
+    updateProfile,
+    changePassword,
+    forgotPassword,
+    resetPassword,
     logout 
   }
 })

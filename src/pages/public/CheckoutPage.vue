@@ -347,7 +347,7 @@ async function processPayment() {
           </div>
 
           <!-- Method selector -->
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button @click="paymentMethod = 'card'"
               class="p-4 border-2 rounded-2xl flex items-center gap-3 transition-all font-bold text-sm"
               :class="paymentMethod === 'card' ? 'border-primary bg-primary/5 text-primary' : 'border-border text-text-secondary hover:border-primary/40'">
@@ -404,7 +404,7 @@ async function processPayment() {
               <BaseInput label="Nombre en la tarjeta" v-model="paymentForm.cardName" placeholder="Como aparece en la tarjeta" @keypress="onlyLetters" />
               <p v-if="errors.cardName" class="text-xs text-red-500">{{ errors.cardName }}</p>
             </div>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div class="space-y-1">
                 <label class="text-sm font-semibold text-text-primary ml-1">Vencimiento</label>
                 <input

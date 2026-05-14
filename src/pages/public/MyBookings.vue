@@ -44,7 +44,7 @@ const fetchData = async () => {
   loading.value = true
   try {
     const [bookingsRes, invoicesRes] = await Promise.all([
-      bookingService.getUserHistory(),
+      bookingService.getCustomerBookings(),
       billingService.getMyInvoices()
     ])
     
@@ -201,7 +201,7 @@ onMounted(fetchData)
                 </div>
               </div>
 
-              <div class="grid grid-cols-2 gap-6 py-6 border-y border-border mb-6">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 py-6 border-y border-border mb-6">
                 <div class="space-y-1">
                   <div class="text-[10px] font-black text-text-secondary uppercase">Fecha y Hora (Local)</div>
                   <div class="text-sm font-bold text-text-primary">{{ formatDateLocal(booking.slotDate) }}</div>

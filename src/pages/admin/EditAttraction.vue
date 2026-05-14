@@ -339,7 +339,7 @@ const tabs = [
             v-model:lng="form.longitude" 
             label="Mueve el pin hasta el punto de encuentro exacto"
           />
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <BaseInput label="Latitud" type="number" step="any" v-model.number="form.latitude" disabled class="opacity-70" />
             <BaseInput label="Longitud" type="number" step="any" v-model.number="form.longitude" disabled class="opacity-70" />
           </div>

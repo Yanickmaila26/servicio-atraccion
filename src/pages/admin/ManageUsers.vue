@@ -238,7 +238,7 @@ onMounted(fetchUsers)
 
                   <div>
                     <label class="block text-sm font-medium text-text-secondary mb-1">Rol en el sistema</label>
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <button 
                         @click="newUser.role = 'Partner'"
                         class="flex flex-col items-center p-3 border-2 rounded-xl transition-all"

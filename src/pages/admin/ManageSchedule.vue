@@ -694,7 +694,7 @@ onMounted(async () => {
           <BaseInput label="Fecha exacta a eliminar" type="date" v-model="bulkDeleteForm.exactDate" />
         </div>
         
-        <div v-if="bulkDeleteType === 'range' || bulkDeleteType === 'day'" class="grid grid-cols-2 gap-4">
+        <div v-if="bulkDeleteType === 'range' || bulkDeleteType === 'day'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <BaseInput label="Desde" type="date" v-model="bulkDeleteForm.fromDate" />
           <BaseInput label="Hasta" type="date" v-model="bulkDeleteForm.toDate" />
         </div>

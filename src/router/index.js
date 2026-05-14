@@ -110,6 +110,16 @@ const routes = [
         component: () => import('@/pages/public/RegisterPage.vue')
       },
       {
+        path: 'forgot-password',
+        name: 'ForgotPassword',
+        component: () => import('@/pages/public/ForgotPassword.vue')
+      },
+      {
+        path: 'reset-password',
+        name: 'ResetPassword',
+        component: () => import('@/pages/public/ResetPassword.vue')
+      },
+      {
         path: 'attractions',
         name: 'AttractionsList',
         component: () => import('@/pages/public/AttractionsList.vue')
@@ -130,6 +140,12 @@ const routes = [
         path: 'my-invoices',
         name: 'MyInvoices',
         component: () => import('@/pages/public/MyInvoices.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'my-profile',
+        name: 'MyProfile',
+        component: () => import('@/pages/public/MyProfile.vue'),
         meta: { requiresAuth: true }
       },
       {

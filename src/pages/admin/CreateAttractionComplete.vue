@@ -450,7 +450,7 @@ async function handleSubmit() {
             v-model:lng="form.longitude" 
             label="Selecciona la ubicación principal en el mapa"
           />
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <BaseInput label="Latitud" v-model.number="form.latitude" type="number" step="0.000001" disabled />
             <BaseInput label="Longitud" v-model.number="form.longitude" type="number" step="0.000001" disabled />
           </div>

@@ -63,7 +63,7 @@ async function handleLogin() {
         />
 
         <div class="flex items-center justify-end">
-          <a href="#" class="text-xs text-primary hover:underline">¿Olvidaste tu contraseña?</a>
+          <router-link to="/forgot-password" class="text-xs text-primary hover:underline font-bold">¿Olvidaste tu contraseña?</router-link>
         </div>
 
         <BaseButton type="submit" class="w-full py-3" :loading="loading">

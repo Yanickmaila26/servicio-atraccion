@@ -136,13 +136,13 @@ onMounted(fetchInvoices)
 
     <!-- Detail Modal -->
     <div v-if="showDetail" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div class="bg-surface w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in">
-        <div class="p-6 border-b border-border flex justify-between items-center bg-primary text-white">
+      <div class="bg-surface w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in flex flex-col max-h-[90vh]">
+        <div class="p-6 border-b border-border flex justify-between items-center bg-primary text-white shrink-0">
           <h3 class="text-xl font-black uppercase tracking-tight">Detalle de Factura</h3>
-          <button @click="showDetail = false" class="p-2 hover:bg-white/20 rounded-full">✕</button>
+          <button @click="showDetail = false" class="p-2 hover:bg-white/20 rounded-full transition-colors">✕</button>
         </div>
-        <div class="p-8 space-y-6">
-          <div class="grid grid-cols-2 gap-8">
+        <div class="p-8 space-y-6 overflow-y-auto">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-8">
             <div class="space-y-1">
               <p class="text-[10px] font-black uppercase text-text-secondary">Emisor</p>
               <p class="font-bold text-text-primary">Sistema de Atracciones S.A.</p>
@@ -157,7 +157,7 @@ onMounted(fetchInvoices)
 
           <div class="bg-background rounded-2xl p-4 border border-border">
             <p class="text-[10px] font-black uppercase text-text-secondary mb-2">Datos del Cliente</p>
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p class="text-xs font-bold text-text-secondary">Nombre / Razón Social</p>
                 <p class="text-sm font-black">{{ selectedInvoice.customerName || selectedInvoice.customer_name }}</p>

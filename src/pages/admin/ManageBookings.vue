@@ -251,7 +251,7 @@ onMounted(fetchBookings)
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="space-y-4">
             <h3 class="text-sm font-black uppercase text-text-secondary border-b border-border pb-2">Información General</h3>
-            <div class="grid grid-cols-2 gap-4 text-sm">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
                 <div class="text-text-secondary text-xs">PNR / Código</div>
                 <div class="font-bold text-primary font-mono text-base">{{ selectedBooking.pnrCode || selectedBooking.pnr }}</div>
@@ -306,8 +306,8 @@ onMounted(fetchBookings)
 
         <div class="space-y-4">
           <h3 class="text-sm font-black uppercase text-text-secondary border-b border-border pb-2">Desglose de Pasajeros</h3>
-          <div class="bg-background rounded-2xl border border-border overflow-hidden">
-            <table class="w-full text-left text-sm">
+          <div class="bg-background rounded-2xl border border-border overflow-hidden overflow-x-auto">
+            <table class="w-full text-left text-sm min-w-[500px]">
               <thead class="bg-surface font-bold text-text-secondary text-xs uppercase border-b border-border">
                 <tr>
                   <th class="px-4 py-3">Nombre</th>

@@ -98,7 +98,7 @@ onMounted(fetchMyInvoices)
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-4 border-t border-border pt-4 mt-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-border pt-4 mt-4">
           <div class="flex items-center gap-2">
             <CalendarDaysIcon class="h-4 w-4 text-text-secondary" />
             <span class="text-sm font-medium text-text-secondary">{{ inv.createdAt || inv.created_at ? new Date(inv.createdAt || inv.created_at).toLocaleDateString() : 'N/A' }}</span>
