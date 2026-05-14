@@ -16,6 +16,11 @@ export default {
     return api.get(`/billing/management/${id}`)
   },
 
+  // Generar factura manual (desacoplada)
+  createInvoice(bookingId, payload) {
+    return api.post(`/billing/invoice/${bookingId}`, payload)
+  },
+
   // Generar URL de descarga para el PDF
   getDownloadUrl(bookingId) {
     // IMPORTANTE: El endpoint real está en /booking/{id}/invoice/pdf (según AtraccionesBookingController)

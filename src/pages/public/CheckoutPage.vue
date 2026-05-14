@@ -193,27 +193,57 @@ async function processPayment() {
   if (!validatePayment()) return
   processingPayment.value = true
   try {
-    const payload = {
-      slotId: slot.value.id,
-      contactName: passengerForms.value[0]?.firstName + ' ' + passengerForms.value[0]?.lastName,
-      contactEmail: passengerForms.value[0]?.email,
-      isPosSale: false,
-      passengers: passengerForms.value.map(p => ({
+    let mappedPassengers = []
+      
+    if (passengerForms.value.length === cartCount.value) {
+      mappedPassengers = passengerForms.value.map(p => ({
         priceTierId: p.tierId,
         firstName: p.firstName.trim(),
         lastName: p.lastName.trim(),
         documentType: p.docType,
         documentNumber: p.docNumber.trim(),
-        quantity: p.qty
+        quantity: 1
+      }))
+    } else {
+      const contact = passengerForms.value[0]
+      mappedPassengers = cartItems.value.map(item => ({
+        priceTierId: item.tierId,
+        firstName: contact?.firstName.trim() || '',
+        lastName: contact?.lastName.trim() || '',
+        documentType: contact?.docType || 'Cédula',
+        documentNumber: contact?.docNumber?.trim() || '',
+        quantity: item.qty
       }))
     }
+
+    const payload = {
+      slotId: slot.value.id,
+      contactName: passengerForms.value[0]?.firstName + ' ' + passengerForms.value[0]?.lastName,
+      contactEmail: passengerForms.value[0]?.email,
+      isPosSale: false,
+      passengers: mappedPassengers
+    }
     const booking = await bookingService.create(payload)
+
+    // Decoupled invoice generation
+    let invoiceWarning = ''
+    try {
+      await billingService.createInvoice(booking.bookingId || booking.id, {
+        customerName: paymentForm.value.cardName,
+        email: passengerForms.value[0]?.email,
+        taxId: '9999999999', // Placeholder
+        address: 'N/A'
+      })
+    } catch (invoiceError) {
+      console.error('Error generando factura:', invoiceError)
+      invoiceWarning = '<br><br><span class="text-yellow-600 text-sm">Reserva confirmada, pero hubo un error al generar tu factura. Por favor, revisa tus datos fiscales.</span>'
+    }
 
     await new Promise(r => setTimeout(r, 1500))
     const fakeExternalId = 'pi_' + Math.random().toString(36).substr(2, 9)
 
     await paymentService.create({
-      bookingId: booking.id,
+      bookingId: booking.bookingId || booking.id,
       paymentMethodId: paymentMethod.value === 'paypal' ? 3 : 1,
       amount: cartTotal.value,
       currencyCode: 'USD',
@@ -229,7 +259,7 @@ async function processPayment() {
       title: '¡Reserva Confirmada!',
       html: `<b>PNR: ${booking.pnrCode || 'Confirmado'}</b><br>
              Tu experiencia en <b>${attractionName}</b> está reservada.<br>
-             Revisa tu correo en <b>${payload.contactEmail}</b>.`,
+             Revisa tu correo en <b>${payload.contactEmail}</b>.${invoiceWarning}`,
       confirmButtonColor: '#3b82f6',
       confirmButtonText: 'Ver mis reservas'
     })
