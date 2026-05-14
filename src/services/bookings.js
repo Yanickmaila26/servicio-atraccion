@@ -19,9 +19,9 @@ export default {
     return api.get(`/admin-booking/${pnr}`)
   },
 
-  // Crear reserva → POST /admin-booking
+  // Crear reserva → POST /booking
   create(data) {
-    return api.post('/admin-booking', data)
+    return api.post('/booking', data)
   },
 
   // Cancelar → POST /admin-booking/cancel

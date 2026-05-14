@@ -210,7 +210,7 @@ onMounted(fetchData)
                 <div class="space-y-1 text-right md:text-left">
                   <div class="text-[10px] font-black text-text-secondary uppercase">Monto Total</div>
                   <div class="text-xl font-black text-primary">${{ booking.totalAmount?.toFixed(2) }} <span class="text-[10px] text-text-secondary uppercase">{{ booking.currencyCode }}</span></div>
-                  <div class="text-[10px] text-text-secondary">{{ booking.details?.length || 1 }} ticket(s) adquiridos</div>
+                  <div class="text-[10px] text-text-secondary">{{ booking.totalPassengers || 1 }} ticket(s) adquiridos</div>
                 </div>
               </div>
 
