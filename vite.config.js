@@ -14,4 +14,14 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    proxy: {
+      // En desarrollo, redirige las llamadas al gateway en la nube evitando CORS y bloqueos de red
+      '/api/v1/yanick-maila': {
+        target: 'https://gateway-api.graysky-7ca4a726.southcentralus.azurecontainerapps.io',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
 })

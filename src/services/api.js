@@ -1,13 +1,17 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 
-// Aseguramos que la URL termine en /yanick-maila incluso si la variable de entorno está mal configurada
-let baseUrl = (import.meta.env.VITE_API_BASE_URL && import.meta.env.VITE_API_BASE_URL.startsWith('http'))
-  ? import.meta.env.VITE_API_BASE_URL
-  : 'https://servicioatraccionapi20260428073304-c5fpe4fja8hvetc0.canadacentral-01.azurewebsites.net/api/v1/yanick-maila'
+// En producción usa la URL completa del env. En local dev puede ser un path relativo
+// para que el proxy de Vite intercepte la petición y evite CORS.
+let baseUrl = import.meta.env.VITE_API_BASE_URL || ''
 
-if (!baseUrl.endsWith('/yanick-maila')) {
-  // Elimina slash final si existe antes de añadir yanick-maila
+// Fallback al monolito antiguo si no está configurado
+if (!baseUrl) {
+  baseUrl = 'https://servicioatraccionapi20260428073304-c5fpe4fja8hvetc0.canadacentral-01.azurewebsites.net/api/v1/yanick-maila'
+}
+
+// Si es URL absoluta y no termina en /yanick-maila, lo agrega automáticamente
+if (baseUrl.startsWith('http') && !baseUrl.endsWith('/yanick-maila')) {
   baseUrl = baseUrl.replace(/\/$/, '') + '/yanick-maila'
 }
 
