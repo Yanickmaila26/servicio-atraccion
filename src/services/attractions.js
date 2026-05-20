@@ -21,32 +21,32 @@ export default {
 
   getManagementDetail(id) {
     // Usamos el endpoint /complete que es el que está funcionando en producción
-    return api.get(`/Attraction/${id}/complete`)
+    return api.get(`/admin-attraction/${id}/complete`)
   },
 
   // Administrativos
   getManagementList(params) {
     // params puede incluir pageNumber, pageSize, search, etc.
-    return api.get('/Attraction/management', { params })
+    return api.get('/admin-attraction/management', { params })
   },
 
   create(data) {
-    return api.post('/Attraction', data)
+    return api.post('/admin-attraction', data)
   },
 
   createComplete(data) {
-    return api.post('/Attraction/complete', data)
+    return api.post('/admin-attraction/complete', data)
   },
 
   update(id, data) {
-    return api.put(`/Attraction/${id}`, data)
+    return api.put(`/admin-attraction/${id}`, data)
   },
 
   delete(id) {
-    return api.delete(`/Attraction/${id}`)
+    return api.delete(`/admin-attraction/${id}`)
   },
 
   toggleStatus(id, isPublished) {
-    return api.patch(`/Attraction/${id}/status`, { isPublished })
+    return api.patch(`/admin-attraction/${id}/status`, { isPublished })
   }
 }
