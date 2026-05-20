@@ -160,24 +160,30 @@ const compressImage = (file) => {
 const handleFileUpload = async (e) => {
   const files = e.target.files
   for (let file of files) {
-    if (file.type.startsWith('image/')) {
-      const compressedUrl = await compressImage(file)
-      form.media.push({ 
-        url: compressedUrl, 
-        title: file.name, 
-        sortOrder: form.media.length + 1, 
-        isMain: form.media.length === 0,
-        mediaTypeId: 1 // 1 = image
-      })
-    } else if (file.type.startsWith('video/')) {
-      // Para videos u otros, usamos un ObjectURL temporal
-      form.media.push({ 
-        url: URL.createObjectURL(file), 
-        title: file.name, 
-        sortOrder: form.media.length + 1, 
-        isMain: false,
-        mediaTypeId: 2 // 2 = video
-      })
+    try {
+      if (file.type.startsWith('image/')) {
+        const tempIndex = form.media.length
+        form.media.push({ 
+          url: '', 
+          title: 'Subiendo...', 
+          sortOrder: tempIndex + 1, 
+          isMain: tempIndex === 0,
+          mediaTypeId: 1,
+          uploading: true
+        })
+
+        const response = await catalogService.uploadMedia(file)
+        
+        form.media[tempIndex].url = response.url
+        form.media[tempIndex].title = file.name
+        form.media[tempIndex].uploading = false
+      } else if (file.type.startsWith('video/')) {
+        Swal.fire('Info', 'La subida de videos actualmente requiere una URL externa o debe ser habilitada.', 'info')
+      }
+    } catch (error) {
+      console.error("Error al subir archivo", error)
+      Swal.fire('Error', 'No se pudo subir la imagen: ' + (error.message || ''), 'error')
+      form.media = form.media.filter(m => m.title !== 'Subiendo...')
     }
   }
 }
@@ -264,6 +270,17 @@ const removeItem = (arr, idx) => arr.splice(idx, 1)
 async function handleSubmit() {
   loading.value = true
   try {
+    // Validar fechas de disponibilidad
+    for (let p of form.products) {
+      if (p.scheduleTemplate.validFrom && p.scheduleTemplate.validTo) {
+        const fromDate = new Date(p.scheduleTemplate.validFrom)
+        const toDate = new Date(p.scheduleTemplate.validTo)
+        if (toDate < fromDate) {
+          throw new Error(`En la modalidad "${p.title || 'sin título'}", la fecha 'Válido Hasta' no puede ser menor que 'Válido Desde'.`)
+        }
+      }
+    }
+
     // Preparar el payload según lo acordado: replicar duración/cancelación y incluir scheduleTemplate
     const productsPayload = form.products.map(p => ({
       ...p,
@@ -633,8 +650,10 @@ async function handleSubmit() {
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <BaseInput label="Nombre de la Plantilla" v-model="p.scheduleTemplate.name" placeholder="Ej: Horario Regular" />
               <div class="grid grid-cols-2 gap-4">
-                <BaseInput label="Válido Desde" type="date" v-model="p.scheduleTemplate.validFrom" />
-                <BaseInput label="Válido Hasta" type="date" v-model="p.scheduleTemplate.validTo" />
+                <BaseInput label="Válido Desde" type="date" v-model="p.scheduleTemplate.validFrom" 
+                  @change="p.scheduleTemplate.validTo = (p.scheduleTemplate.validTo && p.scheduleTemplate.validFrom > p.scheduleTemplate.validTo) ? '' : p.scheduleTemplate.validTo" 
+                />
+                <BaseInput label="Válido Hasta" type="date" v-model="p.scheduleTemplate.validTo" :min="p.scheduleTemplate.validFrom" />
               </div>
             </div>
 

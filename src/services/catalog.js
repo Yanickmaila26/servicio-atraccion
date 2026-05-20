@@ -72,5 +72,19 @@ export default {
   },
   deleteInclusion(id) {
     return api.delete(`/Inclusion/${id}`)
+  },
+
+  // Multimedia (Media)
+  uploadMedia(file) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/Media/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  deleteMedia(url) {
+    return api.delete('/Media/delete', { params: { url } })
   }
 }

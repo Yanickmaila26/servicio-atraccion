@@ -27,8 +27,8 @@ L.Icon.Default.mergeOptions({
 onMounted(() => {
   map = L.map(mapContainer.value).setView([props.lat || -0.180653, props.lng || -78.467838], props.zoom)
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
   }).addTo(map)
 
   if (props.lat && props.lng) {

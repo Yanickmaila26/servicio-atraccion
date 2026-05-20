@@ -23,7 +23,7 @@ const fetchData = async () => {
   try {
     const [attrData, locData, catData] = await Promise.all([
       attractionService.getManagementList({ 
-        search: searchQuery.value,
+        searchTerm: searchQuery.value,
         pageNumber: 1,
         pageSize: 50 
       }),

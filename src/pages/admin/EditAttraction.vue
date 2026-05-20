@@ -41,6 +41,7 @@ const form = reactive({
   subcategoryId: '',
   tags: [],
   inclusions: [], // Ahora guardará { inclusionItemId, type }
+  media: [],
   itinerary: { overview: '', stops: [] }
 })
 
@@ -95,6 +96,80 @@ function addStop() {
 }
 function removeStop(idx) { form.itinerary.stops.splice(idx, 1) }
 
+const compressImage = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = (event) => {
+      const img = new Image()
+      img.src = event.target.result
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const MAX_WIDTH = 1200
+        const MAX_HEIGHT = 800
+        let width = img.width
+        let height = img.height
+
+        if (width > height) {
+          if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH }
+        } else {
+          if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT }
+        }
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+        resolve(canvas.toDataURL('image/jpeg', 0.8))
+      }
+    }
+    reader.onerror = error => reject(error)
+  })
+}
+
+const handleFileUpload = async (e) => {
+  const files = e.target.files
+  for (let file of files) {
+    try {
+      if (file.type.startsWith('image/')) {
+        // Mostrar indicador temporal
+        const tempIndex = form.media.length
+        form.media.push({ 
+          url: '', 
+          title: 'Subiendo...', 
+          sortOrder: tempIndex + 1, 
+          isMain: tempIndex === 0,
+          mediaTypeId: 1,
+          uploading: true
+        })
+
+        // Subida real
+        const response = await catalogService.uploadMedia(file)
+        
+        // Reemplazar la URL
+        form.media[tempIndex].url = response.url
+        form.media[tempIndex].title = file.name
+        form.media[tempIndex].uploading = false
+      } else if (file.type.startsWith('video/')) {
+        // Para videos es lo mismo (si el backend lo soporta, o mantenemos base64/URL object si es externo)
+        Swal.fire('Info', 'La subida de videos actualmente requiere una URL externa o debe ser habilitada.', 'info')
+      }
+    } catch (error) {
+      console.error("Error al subir archivo", error)
+      Swal.fire('Error', 'No se pudo subir la imagen: ' + (error.message || ''), 'error')
+      // Remover el placeholder si falló
+      form.media = form.media.filter(m => m.title !== 'Subiendo...')
+    }
+  }
+}
+
+const setMainMedia = (idx) => {
+  form.media.forEach((m, i) => m.isMain = (i === idx))
+}
+
+const removeMedia = (idx) => {
+  form.media.splice(idx, 1)
+}
+
 onMounted(async () => {
   try {
     console.log('Cargando detalle de atracción ID:', attractionId)
@@ -141,6 +216,15 @@ onMounted(async () => {
       overview: a.itinerary?.overview || '',
       stops: (a.itinerary?.stops || []).map(s => ({ ...s }))
     }
+
+    // Mapeo de Media de la galería
+    form.media = (a.gallery || []).map(m => ({
+      url: m.url,
+      title: m.title || '',
+      isMain: m.isMain || false,
+      sortOrder: m.sortOrder || 1,
+      mediaTypeId: m.url.includes('.mp4') || m.url.includes('video') ? 2 : 1
+    }))
 
     // Autoselección de Categoría
     if (a.categoryId) {
@@ -191,6 +275,7 @@ async function handleSave() {
       subcategoryId: form.subcategoryId || null,
       tags: form.tags,
       inclusions: form.inclusions,
+      media: form.media,
       itinerary: (form.itinerary.overview || form.itinerary.stops.length > 0)
         ? {
             languageId: 1,
@@ -212,6 +297,7 @@ async function handleSave() {
 const tabs = [
   { key: 'general', label: 'General', icon: CheckBadgeIcon },
   { key: 'location', label: 'Ubicación', icon: GlobeAltIcon },
+  { key: 'media', label: 'Media', icon: PhotoIcon },
   { key: 'tags', label: 'Tags', icon: TagIcon },
   { key: 'inclusions', label: 'Inclusiones', icon: CheckCircleIcon },
   { key: 'itinerary', label: 'Itinerario', icon: ListBulletIcon },
@@ -344,6 +430,43 @@ const tabs = [
             <BaseInput label="Longitud" type="number" step="any" v-model.number="form.longitude" disabled class="opacity-70" />
           </div>
           <BaseInput label="Punto de Encuentro (Texto)" v-model="form.meetingPoint" placeholder="Instrucciones precisas para el turista..." />
+        </div>
+      </div>
+      <!-- Tab: Media -->
+      <div v-if="activeTab === 'media'" class="bg-surface border border-border rounded-3xl p-8 space-y-6 animate-in fade-in duration-500">
+        <div class="flex items-center justify-between border-b border-border pb-4">
+          <div class="flex items-center gap-2">
+            <PhotoIcon class="h-6 w-6 text-primary" />
+            <h2 class="text-xl font-bold text-text-primary">Galería Multimedia</h2>
+          </div>
+          <div>
+            <input type="file" multiple accept="image/*,video/*" class="hidden" ref="fileInput" @change="handleFileUpload" />
+            <BaseButton size="sm" @click="$refs.fileInput.click()">+ Subir Archivos</BaseButton>
+          </div>
+        </div>
+        <p class="text-text-secondary text-sm">Gestiona las imágenes de la atracción. La imagen marcada como principal se mostrará en los resultados de búsqueda.</p>
+        
+        <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <div v-for="(m, idx) in form.media" :key="idx" class="relative group bg-background border border-border rounded-2xl overflow-hidden aspect-video">
+            <img :src="m.url" class="object-cover w-full h-full" />
+            
+            <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+              <button 
+                @click="setMainMedia(idx)"
+                class="px-3 py-1.5 text-xs font-bold uppercase rounded-lg border transition-all text-white w-32"
+                :class="m.isMain ? 'bg-primary border-primary' : 'bg-transparent border-white hover:bg-white/20'"
+              >
+                {{ m.isMain ? '★ Principal' : 'Hacer Principal' }}
+              </button>
+              <button @click="removeMedia(idx)" class="px-3 py-1.5 text-xs font-bold uppercase rounded-lg border border-red-500 text-red-500 bg-red-500/20 hover:bg-red-500 hover:text-white w-32 transition-all">
+                Eliminar
+              </button>
+            </div>
+          </div>
+          <div v-if="form.media.length === 0" class="col-span-full py-16 border border-dashed border-border rounded-3xl text-center text-text-secondary italic flex flex-col items-center justify-center gap-2 bg-background/50">
+            <PhotoIcon class="w-10 h-10 text-border" />
+            Sin archivos seleccionados.
+          </div>
         </div>
       </div>
 

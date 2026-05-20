@@ -178,6 +178,13 @@ const toggleDate = (date) => {
 
 const loadSlots = async () => {
   if (!selectedProduct.value) return
+
+  if (slotFilters.value.fromDate && slotFilters.value.toDate) {
+    if (slotFilters.value.fromDate > slotFilters.value.toDate) {
+      return Swal.fire('Atención', 'La fecha “Hasta” no puede ser menor que la fecha “Desde”.', 'warning')
+    }
+  }
+
   loadingSlots.value = true
   selectedSlotIds.value = []
   expandedDates.value = []
@@ -268,6 +275,14 @@ const executeBulkDelete = async () => {
   })
 
   if (!confirm.isConfirmed) return
+
+  if (bulkDeleteType.value === 'range' || bulkDeleteType.value === 'day') {
+    if (bulkDeleteForm.value.fromDate && bulkDeleteForm.value.toDate) {
+      if (bulkDeleteForm.value.fromDate > bulkDeleteForm.value.toDate) {
+        return Swal.fire('Atención', 'La fecha “Hasta” no puede ser menor que la fecha “Desde”.', 'warning')
+      }
+    }
+  }
 
   loading.value = true
   try {
@@ -457,12 +472,12 @@ onMounted(async () => {
                 Mín. {{ selectedProduct?.maxGroupSize || 1 }} cupos (igual al máx. pax de la modalidad)
               </p>
             </div>
-            <div class="space-y-1">
-              <BaseInput label="Válido Desde" type="date" v-model="templateForm.validFrom"
+            <div class="grid grid-cols-2 gap-4">
+              <BaseInput label="Válido Desde *" type="date" v-model="templateForm.validFrom" 
                 @change="templateForm.validTo = (templateForm.validTo && templateForm.validFrom > templateForm.validTo) ? '' : templateForm.validTo"
               />
+              <BaseInput label="Válido Hasta" type="date" v-model="templateForm.validTo" :min="templateForm.validFrom" />
             </div>
-            <BaseInput label="Válido Hasta" type="date" v-model="templateForm.validTo" :min="templateForm.validFrom" />
           </div>
 
           <div class="space-y-3 mb-6">
@@ -694,9 +709,11 @@ onMounted(async () => {
           <BaseInput label="Fecha exacta a eliminar" type="date" v-model="bulkDeleteForm.exactDate" />
         </div>
         
-        <div v-if="bulkDeleteType === 'range' || bulkDeleteType === 'day'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <BaseInput label="Desde" type="date" v-model="bulkDeleteForm.fromDate" />
-          <BaseInput label="Hasta" type="date" v-model="bulkDeleteForm.toDate" />
+        <div v-if="bulkDeleteType === 'range' || bulkDeleteType === 'day'" class="grid grid-cols-2 gap-4">
+          <BaseInput label="Desde" type="date" v-model="bulkDeleteForm.fromDate" 
+            @change="bulkDeleteForm.toDate = (bulkDeleteForm.toDate && bulkDeleteForm.fromDate > bulkDeleteForm.toDate) ? '' : bulkDeleteForm.toDate"
+          />
+          <BaseInput label="Hasta" type="date" v-model="bulkDeleteForm.toDate" :min="bulkDeleteForm.fromDate" />
         </div>
 
         <div v-if="bulkDeleteType === 'day'">

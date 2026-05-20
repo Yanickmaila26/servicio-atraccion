@@ -11,8 +11,8 @@ const searchQuery = ref('')
 const fetchClients = async () => {
   loading.value = true
   try {
-    const data = await clientService.getList({ q: searchQuery.value })
-    clients.value = data || []
+    const data = await clientService.getList({ searchTerm: searchQuery.value })
+    clients.value = data.items || data || []
   } catch (error) {
     console.error(error)
   } finally {
