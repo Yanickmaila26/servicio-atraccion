@@ -19,15 +19,13 @@ export default {
     return api.get(`/Attraction/${id}`)
   },
 
-  getManagementDetail(id) {
-    // Usamos el endpoint /complete que es el que está funcionando en producción
-    return api.get(`/admin-attraction/${id}/complete`)
+  getManagementDetail(slug) {
+    return api.get(`/admin-attraction/${slug}`)
   },
 
   // Administrativos
   getManagementList(params) {
-    // params puede incluir pageNumber, pageSize, search, etc.
-    return api.get('/admin-attraction/management', { params })
+    return api.get('/admin-attraction', { params })
   },
 
   create(data) {
