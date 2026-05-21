@@ -40,8 +40,8 @@ const handleLogout = () => {
   >
     <!-- Logo Area -->
     <div class="h-16 flex items-center justify-center border-b border-border px-4">
-      <div v-if="isOpen" class="font-bold text-xl text-primary truncate">SistemaAtracciones</div>
-      <div v-else class="font-bold text-xl text-primary">SA</div>
+      <div v-if="isOpen" class="font-bold text-xl text-primary truncate font-sans">TerraQuest</div>
+      <div v-else class="font-bold text-xl text-primary">TQ</div>
     </div>
 
     <!-- Navigation -->

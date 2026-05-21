@@ -5,7 +5,7 @@ import attractionService from '@/services/attractions'
 import bookingService from '@/services/bookings'
 import scheduleService from '@/services/schedule'
 import paymentService from '@/services/payments'
-import reviewService from '@/services/reviews'
+
 import BaseButton from '@/components/common/BaseButton.vue'
 import Swal from 'sweetalert2'
 import 'leaflet/dist/leaflet.css'
@@ -13,8 +13,7 @@ import {
   MapPinIcon, ClockIcon, UserGroupIcon, CheckBadgeIcon, XMarkIcon,
   LanguageIcon, ShieldCheckIcon, ArrowLeftIcon, StarIcon,
   MapIcon, ChevronDownIcon, MinusIcon, PlusIcon, CreditCardIcon,
-  SpeakerWaveIcon, DocumentTextIcon, MicrophoneIcon, PhotoIcon,
-  ChatBubbleLeftRightIcon
+  SpeakerWaveIcon, DocumentTextIcon, MicrophoneIcon, PhotoIcon
 } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '@/stores/auth'
 import { useCheckoutStore } from '@/stores/checkout'
@@ -36,13 +35,7 @@ const ticketCounts = ref({})
 const showPaymentForm = ref(false)
 const processingPayment = ref(false)
 
-const reviews = ref([])
-const reviewsLoading = ref(true)
-const averageRating = computed(() => {
-  if (reviews.value.length === 0) return 0
-  const sum = reviews.value.reduce((acc, r) => acc + r.rating, 0)
-  return sum / reviews.value.length
-})
+
 
 // Passenger info: one entry per priceTier with qty > 0
 const passengerForms = ref([]) // [{tierId, tierName, qty, firstName, lastName, docType, docNumber}]
@@ -440,25 +433,15 @@ async function initMap() {
 
 async function loadAttraction() {
   loading.value = true
-  reviewsLoading.value = true
   try {
     const slug = route.params.slug
-    const [data, revData] = await Promise.all([
-      attractionService.getBySlug(slug),
-      reviewService.getByAttraction(slug)
-    ])
-    attraction.value = data
-    reviews.value = revData.items || []
-    
+    attraction.value = await attractionService.getBySlug(slug)
     loading.value = false
-    reviewsLoading.value = false
-    
     await nextTick()
     await initMap()
   } catch (e) {
     console.error(e)
     loading.value = false
-    reviewsLoading.value = false
   }
 }
 
@@ -727,54 +710,7 @@ onUnmounted(() => { if (leafletMap) { leafletMap.remove(); leafletMap = null } }
             </div>
           </section>
 
-          <!-- Reviews Section -->
-          <section v-if="reviews.length > 0 || reviewsLoading" id="reviews" class="bg-surface border border-border rounded-3xl p-8 shadow-sm">
-            <div class="flex items-center justify-between mb-8">
-              <div>
-                <h2 class="text-2xl font-bold text-text-primary flex items-center gap-2">
-                  <ChatBubbleLeftRightIcon class="h-6 w-6 text-primary" /> Opiniones de viajeros
-                </h2>
-                <div class="flex items-center gap-2 mt-1">
-                  <div class="flex">
-                    <StarIcon v-for="i in 5" :key="i" class="h-4 w-4" :class="i <= Math.round(averageRating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'" />
-                  </div>
-                  <span class="text-sm text-text-secondary">({{ reviews.length }} reseñas)</span>
-                </div>
-              </div>
-            </div>
 
-            <div v-if="reviewsLoading" class="space-y-4">
-              <div v-for="i in 2" :key="i" class="h-32 bg-background animate-pulse rounded-2xl"></div>
-            </div>
-
-            <div v-else-if="reviews.length === 0" class="text-center py-12 bg-background rounded-2xl border border-dashed border-border">
-              <ChatBubbleLeftRightIcon class="h-10 w-10 mx-auto text-text-secondary/20 mb-3" />
-              <p class="text-text-secondary italic">Aún no hay opiniones para esta atracción. ¡Sé el primero en compartir tu experiencia!</p>
-            </div>
-
-            <div v-else class="space-y-6">
-              <div v-for="rev in reviews" :key="rev.id" class="border-b border-border last:border-0 pb-6 last:pb-0">
-                <div class="flex items-center justify-between mb-3">
-                  <div class="flex items-center gap-3">
-                    <div class="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                      {{ rev.userName?.charAt(0) || 'U' }}
-                    </div>
-                    <div>
-                      <div class="font-bold text-text-primary text-sm">{{ rev.userName }}</div>
-                      <div class="text-[10px] text-text-secondary">{{ new Date(rev.createdAt).toLocaleDateString() }}</div>
-                    </div>
-                  </div>
-                  <div class="flex">
-                    <StarIcon v-for="i in 5" :key="i" class="h-3 w-3" :class="i <= rev.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'" />
-                  </div>
-                </div>
-                <p class="text-text-secondary text-sm leading-relaxed">{{ rev.comment }}</p>
-                <div v-if="rev.isVerified" class="mt-3 flex items-center gap-1.5 text-green-600 text-[10px] font-bold uppercase tracking-wider">
-                  <ShieldCheckIcon class="h-3 w-3" /> Compra Verificada
-                </div>
-              </div>
-            </div>
-          </section>
         </div>
 
         <!-- RIGHT: Sidebar -->

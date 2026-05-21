@@ -23,8 +23,8 @@ const handleLogout = () => {
         <div class="flex justify-between h-16 items-center">
           <div class="flex items-center gap-8">
             <div class="flex items-center gap-2 cursor-pointer group" @click="router.push('/')">
-              <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform">A</div>
-              <span class="text-xl font-bold tracking-tight hidden sm:block">Sistema<span class="text-primary">Atracciones</span></span>
+              <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform">T</div>
+              <span class="text-xl font-bold tracking-tight hidden sm:block">Terra<span class="text-primary">Quest</span></span>
             </div>
 
             <div class="hidden md:flex items-center gap-6">
@@ -112,10 +112,10 @@ const handleLogout = () => {
         <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
           <div class="col-span-1 md:col-span-2">
             <div class="flex items-center gap-2 mb-4">
-              <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">A</div>
-              <span class="text-xl font-bold tracking-tight">Sistema<span class="text-primary">Atracciones</span></span>
+              <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">T</div>
+              <span class="text-xl font-bold tracking-tight">Terra<span class="text-primary">Quest</span></span>
             </div>
-            <p class="text-text-secondary text-sm max-w-xs">Explora las mejores atracciones y tours con la mejor tecnología y seguridad en tus reservas.</p>
+            <p class="text-text-secondary text-sm max-w-xs">Descubre experiencias extraordinarias, tours únicos y atracciones inolvidables en todo el mundo con TerraQuest.</p>
           </div>
           
           <div>
@@ -150,7 +150,7 @@ const handleLogout = () => {
         </div>
         
         <div class="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
-          <p class="text-text-secondary text-xs">© 2026 SistemaAtracciones. Todos los derechos reservados.</p>
+          <p class="text-text-secondary text-xs">© 2026 TerraQuest Experiences. Todos los derechos reservados.</p>
           <div class="flex gap-6">
             <a href="#" class="text-xs text-text-secondary hover:text-primary transition-colors">Privacidad</a>
             <a href="#" class="text-xs text-text-secondary hover:text-primary transition-colors">Términos</a>
