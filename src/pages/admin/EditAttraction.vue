@@ -58,12 +58,23 @@ const cities = computed(() => {
   return s ? s.children || [] : []
 })
 
-watch(selectedCountryId, () => { selectedStateId.value = ''; form.locationId = '' })
-watch(selectedStateId, () => { form.locationId = '' })
+watch(selectedCountryId, (newVal, oldVal) => {
+  if (oldVal) {
+    selectedStateId.value = ''
+    form.locationId = ''
+  }
+})
+watch(selectedStateId, (newVal, oldVal) => {
+  if (oldVal) {
+    form.locationId = ''
+  }
+})
 
 const selectedCategoryId = ref('')
-watch(selectedCategoryId, async (catId) => {
-  form.subcategoryId = ''
+watch(selectedCategoryId, async (catId, oldCatId) => {
+  if (oldCatId) {
+    form.subcategoryId = ''
+  }
   subcategories.value = catId ? await catalogService.getSubcategories(catId) : []
 })
 

@@ -435,7 +435,7 @@ async function loadAttraction() {
   loading.value = true
   try {
     const slug = route.params.slug
-    attraction.value = await attractionService.getManagementDetail(slug)
+    attraction.value = await attractionService.getBySlug(slug)
     loading.value = false
     await nextTick()
     await initMap()

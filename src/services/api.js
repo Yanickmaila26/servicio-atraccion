@@ -33,13 +33,43 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
+const rewriteCatalogUrls = (obj, gatewayOrigin) => {
+  if (!obj) return obj
+  if (typeof obj === 'string') {
+    if (obj.includes('catalog-api')) {
+      return obj.replace(/https?:\/\/catalog-api(:\d+)?/g, gatewayOrigin)
+    }
+    return obj
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => rewriteCatalogUrls(item, gatewayOrigin))
+  }
+  if (typeof obj === 'object') {
+    for (let key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        obj[key] = rewriteCatalogUrls(obj[key], gatewayOrigin)
+      }
+    }
+  }
+  return obj
+}
+
 api.interceptors.response.use(
   (response) => {
+    let data = response.data
     // Si la respuesta tiene el formato estándar { success, data, message, errors }
-    if (response.data && Object.prototype.hasOwnProperty.call(response.data, 'success')) {
-      return response.data.data
+    if (data && Object.prototype.hasOwnProperty.call(data, 'success')) {
+      data = data.data
     }
-    return response.data
+    
+    try {
+      const gatewayOrigin = new URL(baseUrl).origin
+      data = rewriteCatalogUrls(data, gatewayOrigin)
+    } catch (e) {
+      data = rewriteCatalogUrls(data, window.location.origin)
+    }
+    
+    return data
   },
   (error) => {
     const response = error.response
