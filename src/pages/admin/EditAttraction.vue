@@ -131,33 +131,29 @@ const handleFileUpload = async (e) => {
   for (let file of files) {
     try {
       if (file.type.startsWith('image/')) {
-        // Mostrar indicador temporal
         const tempIndex = form.media.length
         form.media.push({ 
           url: '', 
-          title: 'Subiendo...', 
+          title: 'Procesando...', 
           sortOrder: tempIndex + 1, 
           isMain: tempIndex === 0,
           mediaTypeId: 1,
           uploading: true
         })
 
-        // Subida real
-        const response = await catalogService.uploadMedia(file)
+        // Comprimir y convertir a Base64 en cliente
+        const base64Url = await compressImage(file)
         
-        // Reemplazar la URL
-        form.media[tempIndex].url = response.url
+        form.media[tempIndex].url = base64Url
         form.media[tempIndex].title = file.name
         form.media[tempIndex].uploading = false
       } else if (file.type.startsWith('video/')) {
-        // Para videos es lo mismo (si el backend lo soporta, o mantenemos base64/URL object si es externo)
         Swal.fire('Info', 'La subida de videos actualmente requiere una URL externa o debe ser habilitada.', 'info')
       }
     } catch (error) {
-      console.error("Error al subir archivo", error)
-      Swal.fire('Error', 'No se pudo subir la imagen: ' + (error.message || ''), 'error')
-      // Remover el placeholder si falló
-      form.media = form.media.filter(m => m.title !== 'Subiendo...')
+      console.error("Error al procesar imagen", error)
+      Swal.fire('Error', 'No se pudo procesar la imagen: ' + (error.message || ''), 'error')
+      form.media = form.media.filter(m => m.title !== 'Procesando...')
     }
   }
 }
@@ -448,7 +444,10 @@ const tabs = [
         
         <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           <div v-for="(m, idx) in form.media" :key="idx" class="relative group bg-background border border-border rounded-2xl overflow-hidden aspect-video">
-            <img :src="m.url" class="object-cover w-full h-full" />
+            <img v-if="m.url" :src="m.url" class="object-cover w-full h-full" />
+            <div v-else class="flex items-center justify-center w-full h-full bg-surface text-xs text-text-secondary break-all p-4 text-center">
+              {{ m.title || 'Procesando...' }}
+            </div>
             
             <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
               <button 
