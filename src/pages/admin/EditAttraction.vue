@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import attractionService from '@/services/attractions'
 import catalogService from '@/services/catalog'
+import api from '@/services/api'
 import MapPicker from '@/components/common/MapPicker.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseInput from '@/components/common/BaseInput.vue'
@@ -20,6 +21,7 @@ const attractionId = route.params.id
 const loading = ref(true)
 const saving = ref(false)
 const activeTab = ref('general')
+const isInitializing = ref(true) // Evita que los watchers limpien valores durante la carga inicial
 
 // Catalogs
 const locations = ref([])
@@ -72,6 +74,7 @@ watch(selectedStateId, (newVal, oldVal) => {
 
 const selectedCategoryId = ref('')
 watch(selectedCategoryId, async (catId, oldCatId) => {
+  if (isInitializing.value) return // No resetear durante la carga inicial
   if (oldCatId) {
     form.subcategoryId = ''
   }
@@ -140,33 +143,38 @@ const compressImage = (file) => {
 const handleFileUpload = async (e) => {
   const files = e.target.files
   for (let file of files) {
+    if (!file.type.startsWith('image/')) {
+      Swal.fire('Info', 'Solo se permiten imágenes.', 'info')
+      continue
+    }
+    const tempIndex = form.media.length
+    form.media.push({ 
+      url: '', 
+      title: file.name, 
+      sortOrder: tempIndex + 1, 
+      isMain: form.media.length === 0,
+      mediaTypeId: 1,
+      uploading: true
+    })
     try {
-      if (file.type.startsWith('image/')) {
-        const tempIndex = form.media.length
-        form.media.push({ 
-          url: '', 
-          title: 'Procesando...', 
-          sortOrder: tempIndex + 1, 
-          isMain: tempIndex === 0,
-          mediaTypeId: 1,
-          uploading: true
-        })
-
-        // Comprimir y convertir a Base64 en cliente
-        const base64Url = await compressImage(file)
-        
-        form.media[tempIndex].url = base64Url
-        form.media[tempIndex].title = file.name
-        form.media[tempIndex].uploading = false
-      } else if (file.type.startsWith('video/')) {
-        Swal.fire('Info', 'La subida de videos actualmente requiere una URL externa o debe ser habilitada.', 'info')
-      }
+      // Subir directamente al endpoint de media
+      const formData = new FormData()
+      formData.append('file', file)
+      const result = await api.post('/Media/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      // El interceptor desenvuelve { success, data } → devuelve la URL directamente o un objeto
+      const url = typeof result === 'string' ? result : (result?.url || result)
+      form.media[tempIndex].url = url
+      form.media[tempIndex].uploading = false
     } catch (error) {
-      console.error("Error al procesar imagen", error)
-      Swal.fire('Error', 'No se pudo procesar la imagen: ' + (error.message || ''), 'error')
-      form.media = form.media.filter(m => m.title !== 'Procesando...')
+      console.error("Error al subir imagen", error)
+      Swal.fire('Error', 'No se pudo subir la imagen: ' + (error.message || ''), 'error')
+      form.media.splice(tempIndex, 1)
     }
   }
+  // Reset input para permitir subir el mismo archivo nuevamente
+  e.target.value = ''
 }
 
 const setMainMedia = (idx) => {
@@ -178,6 +186,7 @@ const removeMedia = (idx) => {
 }
 
 onMounted(async () => {
+  isInitializing.value = true
   try {
     console.log('Cargando detalle de atracción ID:', attractionId)
     // Usamos directamente el endpoint estable
@@ -233,12 +242,23 @@ onMounted(async () => {
       mediaTypeId: m.url.includes('.mp4') || m.url.includes('video') ? 2 : 1
     }))
 
-    // Autoselección de Categoría
+    // Autoselección de Categoría (usando categoryId que ahora viene del backend)
     if (a.categoryId) {
       selectedCategoryId.value = a.categoryId
+      // Cargar subcategorías y luego asignar subcategoryId
+      subcategories.value = await catalogService.getSubcategories(a.categoryId)
+      if (a.subcategoryId) {
+        form.subcategoryId = a.subcategoryId
+      }
     } else if (a.categoryName) {
       const cat = categories.value.find(c => c.name === a.categoryName)
-      if (cat) selectedCategoryId.value = cat.id
+      if (cat) {
+        selectedCategoryId.value = cat.id
+        subcategories.value = await catalogService.getSubcategories(cat.id)
+        if (a.subcategoryId) {
+          form.subcategoryId = a.subcategoryId
+        }
+      }
     }
 
     // Reconstrucción del árbol de ubicación basado en la Ciudad (locationId)
@@ -262,6 +282,7 @@ onMounted(async () => {
     Swal.fire('Error', 'No se pudo cargar los datos: ' + e.message, 'error')
   } finally {
     loading.value = false
+    isInitializing.value = false
   }
 })
 

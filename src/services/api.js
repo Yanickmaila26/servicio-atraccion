@@ -36,8 +36,12 @@ api.interceptors.request.use(
 const rewriteCatalogUrls = (obj, gatewayOrigin) => {
   if (!obj) return obj
   if (typeof obj === 'string') {
+    // Manejar tanto 'http://catalog-api/...' como 'catalog-api/...' (sin esquema)
     if (obj.includes('catalog-api')) {
-      return obj.replace(/https?:\/\/catalog-api(:\d+)?/g, gatewayOrigin)
+      return obj
+        .replace(/https?:\/\/catalog-api(:\d+)?/g, gatewayOrigin)
+        .replace(/^catalog-api(:\d+)?/g, gatewayOrigin)
+        .replace(/\/\/catalog-api(:\d+)?/g, '//' + new URL(gatewayOrigin).host)
     }
     return obj
   }
