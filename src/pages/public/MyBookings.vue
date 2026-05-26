@@ -113,7 +113,12 @@ const isBookingClosed = (booking) => {
 
 const canCancelBooking = (booking) => {
   if (booking.statusId !== 1 && booking.statusId !== 2) return false;
-  return !isBookingClosed(booking);
+  if (isBookingClosed(booking)) return false;
+  
+  const slotDate = new Date(`${booking.slotDate}T${booking.slotStartTime || '00:00:00'}`)
+  const policyHours = booking.cancelPolicyHours || 24
+  const cancelThreshold = new Date(slotDate.getTime() - (policyHours * 60 * 60 * 1000))
+  return Date.now() <= cancelThreshold.getTime()
 }
 
 const cancelBooking = async (booking) => {
