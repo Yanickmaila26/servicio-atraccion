@@ -11,12 +11,13 @@ export default {
   },
 
   getBySlug(slug, langId = 1) {
-    return api.get(`/Attraction/${slug}`, { params: { requestedLangId: langId } })
+    // /Attraction/{slug} ahora devuelve el shape del contrato YAML (integradores).
+    // El front usa /Attraction/detail/{slug} que mantiene el shape rico (products, gallery, etc.).
+    return api.get(`/Attraction/detail/${slug}`, { params: { requestedLangId: langId } })
   },
 
   getById(id) {
-    // Para marketplace/público (puede usar slug o ID)
-    return api.get(`/Attraction/${id}`)
+    return api.get(`/Attraction/detail/${id}`)
   },
 
   getManagementDetail(slug) {
