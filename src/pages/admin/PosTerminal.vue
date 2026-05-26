@@ -224,6 +224,11 @@ const registerSale = async () => {
       contactName: form.value.clientName || 'Cliente General',
       contactEmail: form.value.clientEmail || 'pos@local.com',
       notes: "Venta POS - " + form.value.paymentMethod,
+      attractionId: selectedAttraction.value?.id,
+      productOptionId: selectedProduct.value?.id,
+      attractionName: selectedAttraction.value?.name,
+      productTitle: selectedProduct.value?.title,
+      currency: 'USD',
       passengers: Object.entries(form.value.tickets)
         .filter(([_, qty]) => qty > 0)
         .map(([id, qty]) => {
