@@ -17,8 +17,10 @@ export default {
   },
 
   // Generar factura manual (desacoplada)
+  // El backend espera bookingId en el body como parte de CreateInvoiceRequest,
+  // no en la URL. POST /billing/invoice
   createInvoice(bookingId, payload) {
-    return api.post(`/billing/invoice/${bookingId}`, payload)
+    return api.post('/billing/invoice', { bookingId, ...payload })
   },
 
   // Generar URL de descarga para el PDF

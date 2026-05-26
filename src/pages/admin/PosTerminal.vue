@@ -226,7 +226,16 @@ const registerSale = async () => {
       notes: "Venta POS - " + form.value.paymentMethod,
       passengers: Object.entries(form.value.tickets)
         .filter(([_, qty]) => qty > 0)
-        .map(([id, qty]) => ({ priceTierId: id, quantity: qty })),
+        .map(([id, qty]) => {
+          const tier = selectedProduct.value?.priceTiers.find(t => t.id === id)
+          const tierLabel = tier ? getTicketCategoryName(tier.ticketCategoryId) : 'Ticket'
+          return {
+            priceTierId: id,
+            priceTierLabel: tierLabel,
+            unitPrice: tier?.price || 0,
+            quantity: qty
+          }
+        }),
       // Objeto de facturación según nueva especificación del backend
       billing: (form.value.clientTaxId || form.value.clientAddress) ? {
         customerName: form.value.clientName,
