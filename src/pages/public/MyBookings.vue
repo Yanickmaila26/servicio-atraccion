@@ -42,23 +42,28 @@ const submittingReview = ref(false)
 
 const fetchData = async () => {
   loading.value = true
-  try {
-    const [bookingsRes, invoicesRes] = await Promise.all([
-      bookingService.getCustomerBookings(),
-      billingService.getMyInvoices()
-    ])
-    
-    // Orden Ascendente (Más recientes al final)
-    bookings.value = (bookingsRes?.items || bookingsRes || []).sort((a, b) => {
+  // allSettled para que un fallo en facturas no impida ver reservas y viceversa
+  const [bookingsRes, invoicesRes] = await Promise.allSettled([
+    bookingService.getCustomerBookings(),
+    billingService.getMyInvoices()
+  ])
+
+  if (bookingsRes.status === 'fulfilled') {
+    const data = bookingsRes.value
+    bookings.value = (data?.items || data || []).sort((a, b) => {
       return new Date(a.slotDate) - new Date(b.slotDate)
     })
-    
-    invoices.value = invoicesRes || []
-  } catch (error) {
-    console.error('Error fetching history:', error)
-  } finally {
-    loading.value = false
+  } else {
+    console.error('Error cargando reservas:', bookingsRes.reason)
   }
+
+  if (invoicesRes.status === 'fulfilled') {
+    invoices.value = invoicesRes.value || []
+  } else {
+    console.error('Error cargando facturas:', invoicesRes.reason)
+  }
+
+  loading.value = false
 }
 
 const formatDateLocal = (dateStr) => {

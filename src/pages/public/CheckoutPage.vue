@@ -241,11 +241,21 @@ async function processPayment() {
     // Decoupled invoice generation
     let invoiceWarning = ''
     try {
+      const taxRatePct = taxRate * 100 // 0.15 → 15.00
+      const invoiceDetails = cartItems.value.map(item => ({
+        description: `${product.value?.title || 'Tour'} - ${item.name} x${item.qty}`,
+        quantity: item.qty,
+        unitPrice: item.price * (1 + taxRate), // precio con IVA; backend reparte
+        taxRate: taxRatePct
+      }))
+
       await billingService.createInvoice(booking.bookingId || booking.id, {
         customerName: paymentForm.value.cardName,
         email: passengerForms.value[0]?.email,
         taxId: '9999999999', // Placeholder
-        address: 'N/A'
+        address: 'N/A',
+        currencyCode: 'USD',
+        details: invoiceDetails
       })
     } catch (invoiceError) {
       console.error('Error generando factura:', invoiceError)
