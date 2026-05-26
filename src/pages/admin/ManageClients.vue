@@ -52,14 +52,14 @@ onMounted(fetchClients)
       <div v-for="client in clients" :key="client.id" class="bg-surface p-6 rounded-2xl border border-border hover:shadow-soft transition-all group">
         <div class="flex items-center gap-4 mb-4">
           <div class="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
-            {{ client.firstName?.charAt(0) }}{{ client.lastName?.charAt(0) }}
+            {{ (client.fullName || client.firstName || '?').charAt(0).toUpperCase() }}
           </div>
           <div>
             <h3 class="text-lg font-bold text-text-primary group-hover:text-primary transition-colors">
-              {{ client.firstName }} {{ client.lastName }}
+              {{ client.fullName || (client.firstName + ' ' + client.lastName) || 'Sin nombre' }}
             </h3>
             <span class="text-xs text-text-secondary font-medium uppercase tracking-wider">
-              {{ client.documentType }}: {{ client.documentNumber }}
+              {{ client.identification || client.documentNumber || 'Sin identificación' }}
             </span>
           </div>
         </div>
@@ -67,7 +67,7 @@ onMounted(fetchClients)
         <div class="space-y-2 pt-4 border-t border-border">
           <div class="flex items-center gap-3 text-sm text-text-secondary">
             <EnvelopeIcon class="h-4 w-4" />
-            <span class="truncate">{{ client.email }}</span>
+            <span class="truncate">{{ client.email || 'Sin email' }}</span>
           </div>
           <div class="flex items-center gap-3 text-sm text-text-secondary">
             <PhoneIcon class="h-4 w-4" />

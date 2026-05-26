@@ -9,14 +9,24 @@ import Swal from 'sweetalert2'
 
 const bookings = ref([])
 const loading = ref(true)
+const loadingDetail = ref(false)
 const searchQuery = ref('')
 const expandedAttractions = ref([])
 const showDetailModal = ref(false)
 const selectedBooking = ref(null)
 
-const openDetail = (booking) => {
-  selectedBooking.value = booking
+const openDetail = async (booking) => {
   showDetailModal.value = true
+  loadingDetail.value = true
+  selectedBooking.value = booking // muestra datos básicos mientras carga
+  try {
+    const fullDetail = await bookingService.getById(booking.id)
+    selectedBooking.value = fullDetail
+  } catch (e) {
+    console.error('Error cargando detalle:', e)
+  } finally {
+    loadingDetail.value = false
+  }
 }
 
 const fetchBookings = async () => {
@@ -283,22 +293,15 @@ onMounted(fetchBookings)
 
           <div class="space-y-4">
             <h3 class="text-sm font-black uppercase text-text-secondary border-b border-border pb-2">Cliente / Contacto</h3>
-            <div class="space-y-2 text-sm">
+            <div v-if="loadingDetail" class="py-4 text-center text-text-secondary text-sm">Cargando...</div>
+            <div v-else class="space-y-2 text-sm">
               <div class="flex justify-between">
                 <span class="text-text-secondary">Nombre:</span>
-                <span class="font-bold text-text-primary">{{ selectedBooking.clientName || 'N/A' }}</span>
+                <span class="font-bold text-text-primary">{{ selectedBooking.contactName || selectedBooking.clientName || 'N/A' }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-text-secondary">Email:</span>
-                <span class="font-bold text-text-primary">{{ selectedBooking.clientEmail || selectedBooking.userEmail || 'N/A' }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-text-secondary">Contacto Reserva:</span>
-                <span class="font-bold text-text-primary">{{ selectedBooking.contactName || 'N/A' }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-text-secondary">Email Contacto:</span>
-                <span class="font-bold text-text-primary">{{ selectedBooking.contactEmail || 'N/A' }}</span>
+                <span class="font-bold text-text-primary">{{ selectedBooking.contactEmail || selectedBooking.clientEmail || selectedBooking.userEmail || 'N/A' }}</span>
               </div>
             </div>
           </div>
@@ -306,30 +309,32 @@ onMounted(fetchBookings)
 
         <div class="space-y-4">
           <h3 class="text-sm font-black uppercase text-text-secondary border-b border-border pb-2">Desglose de Pasajeros</h3>
-          <div class="bg-background rounded-2xl border border-border overflow-hidden overflow-x-auto">
+          <div v-if="loadingDetail" class="py-8 text-center text-text-secondary text-sm">Cargando detalle...</div>
+          <div v-else class="bg-background rounded-2xl border border-border overflow-hidden overflow-x-auto">
             <table class="w-full text-left text-sm min-w-[500px]">
               <thead class="bg-surface font-bold text-text-secondary text-xs uppercase border-b border-border">
                 <tr>
                   <th class="px-4 py-3">Nombre</th>
                   <th class="px-4 py-3">Categoría</th>
                   <th class="px-4 py-3 text-center">Documento</th>
-                  <th class="px-4 py-3 text-right">Cantidad</th>
+                  <th class="px-4 py-3 text-right">Cant / Precio</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-border">
-                <tr v-for="(detail, idx) in selectedBooking.details" :key="idx" class="hover:bg-surface/50 transition-colors">
-                  <td class="px-4 py-3 font-medium text-text-primary">{{ detail.firstName }} {{ detail.lastName }}</td>
-                  <td class="px-4 py-3">{{ detail.priceTierLabel || 'Ticket' }}</td>
-                  <td class="px-4 py-3 text-center text-xs text-text-secondary">
-                    {{ detail.documentType }}: {{ detail.documentNumber }}
-                  </td>
-                  <td class="px-4 py-3 text-right font-bold">{{ detail.quantity }}</td>
+                <tr v-for="(p, idx) in (selectedBooking.passengers || [])" :key="idx" class="hover:bg-surface/50 transition-colors">
+                  <td class="px-4 py-3 font-medium text-text-primary">{{ p.fullName || '—' }}</td>
+                  <td class="px-4 py-3">{{ p.priceTierLabel || 'Ticket' }}</td>
+                  <td class="px-4 py-3 text-center text-xs text-text-secondary">{{ p.documentNumber || '—' }}</td>
+                  <td class="px-4 py-3 text-right font-bold">{{ p.quantity }} × ${{ p.unitPrice?.toFixed(2) }}</td>
+                </tr>
+                <tr v-if="!(selectedBooking.passengers?.length)">
+                  <td colspan="4" class="px-4 py-6 text-center text-text-secondary text-xs italic">Sin datos de pasajeros</td>
                 </tr>
               </tbody>
               <tfoot class="bg-surface/30">
                 <tr>
                   <td colspan="3" class="px-4 py-3 text-right font-black text-text-secondary">Total Pasajeros:</td>
-                  <td class="px-4 py-3 text-right font-black text-primary text-lg">{{ selectedBooking.totalPassengers }}</td>
+                  <td class="px-4 py-3 text-right font-black text-primary text-lg">{{ selectedBooking.totalPassengers || selectedBooking.passengers?.reduce((s,p) => s+p.quantity,0) || 0 }}</td>
                 </tr>
               </tfoot>
             </table>
