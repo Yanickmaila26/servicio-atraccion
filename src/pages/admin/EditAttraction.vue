@@ -313,7 +313,13 @@ async function handleSave() {
         : null
     }
     await attractionService.update(attractionId, payload)
-    Swal.fire({ icon: 'success', title: 'Atracción actualizada', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 })
+    await Swal.fire({
+      icon: 'success',
+      title: '¡Atracción actualizada!',
+      text: 'Los cambios se guardaron correctamente.',
+      confirmButtonColor: '#3b82f6',
+      confirmButtonText: 'Volver al listado'
+    })
     router.push('/admin/attractions')
   } catch (err) {
     Swal.fire('Error', err.response?.data?.message || err.message, 'error')

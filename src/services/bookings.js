@@ -19,9 +19,12 @@ export default {
     return api.get(`/admin-booking/${pnr}`)
   },
 
-  // Crear reserva → POST /booking
+  // Crear reserva del cliente (checkout) → POST /admin-booking
+  // Nota: /booking (AtraccionesBookingController) está reservado para el
+  // contrato de integración externa con sistemas tipo Booking.com; el flujo
+  // interno del checkout/cliente usa /admin-booking (BookingController).
   create(data) {
-    return api.post('/booking', data)
+    return api.post('/admin-booking', data)
   },
 
   // Cancelar → POST /admin-booking/cancel

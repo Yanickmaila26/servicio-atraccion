@@ -194,11 +194,18 @@ async function processPayment() {
   if (!validatePayment()) return
   processingPayment.value = true
   try {
+    // Mapa tierId → snapshot (label + precio) tomado del carrito
+    const tierSnapshot = Object.fromEntries(
+      cartItems.value.map(i => [i.tierId, { label: i.name, price: i.price }])
+    )
+
     let mappedPassengers = []
-      
+
     if (passengerForms.value.length === cartCount.value) {
       mappedPassengers = passengerForms.value.map(p => ({
         priceTierId: p.tierId,
+        priceTierLabel: tierSnapshot[p.tierId]?.label || '',
+        unitPrice: tierSnapshot[p.tierId]?.price || 0,
         firstName: p.firstName.trim(),
         lastName: p.lastName.trim(),
         documentType: p.docType,
@@ -209,6 +216,8 @@ async function processPayment() {
       const contact = passengerForms.value[0]
       mappedPassengers = cartItems.value.map(item => ({
         priceTierId: item.tierId,
+        priceTierLabel: item.name,
+        unitPrice: item.price,
         firstName: contact?.firstName.trim() || '',
         lastName: contact?.lastName.trim() || '',
         documentType: contact?.docType || 'Cédula',
@@ -219,6 +228,9 @@ async function processPayment() {
 
     const payload = {
       slotId: slot.value.id,
+      attractionId: attraction.value?.id,
+      attractionName: attraction.value?.name || '',
+      productTitle: product.value?.title || '',
       contactName: passengerForms.value[0]?.firstName + ' ' + passengerForms.value[0]?.lastName,
       contactEmail: passengerForms.value[0]?.email,
       isPosSale: false,

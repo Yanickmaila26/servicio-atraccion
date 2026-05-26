@@ -193,7 +193,9 @@ const onProductSelect = (prodId) => {
   fetchSlots()
 }
 
-const totalAmount = computed(() => {
+const taxRate = parseFloat(import.meta.env.VITE_TAX_RATE || '0.15')
+
+const subtotal = computed(() => {
   if (!selectedProduct.value) return 0
   let total = 0
   selectedProduct.value.priceTiers.forEach(tier => {
@@ -202,6 +204,9 @@ const totalAmount = computed(() => {
   })
   return total
 })
+
+const taxAmount = computed(() => subtotal.value * taxRate)
+const totalAmount = computed(() => subtotal.value + taxAmount.value)
 
 const totalTickets = computed(() => {
   return Object.values(form.value.tickets).reduce((sum, qty) => sum + qty, 0)
@@ -413,12 +418,20 @@ onMounted(fetchInitialData)
             </div>
           </div>
 
-          <div class="border-t border-border pt-6 mb-6">
-            <div class="flex justify-between items-center mb-2">
+          <div class="border-t border-border pt-6 mb-6 space-y-2">
+            <div class="flex justify-between items-center">
               <span class="text-text-secondary">Tickets Totales</span>
               <span class="font-bold">{{ totalTickets }}</span>
             </div>
-            <div class="flex justify-between items-end">
+            <div class="flex justify-between items-center text-sm">
+              <span class="text-text-secondary">Subtotal</span>
+              <span class="font-medium">${{ subtotal.toFixed(2) }}</span>
+            </div>
+            <div class="flex justify-between items-center text-sm">
+              <span class="text-text-secondary">IVA ({{ (taxRate * 100).toFixed(0) }}%)</span>
+              <span class="font-medium">${{ taxAmount.toFixed(2) }}</span>
+            </div>
+            <div class="flex justify-between items-end pt-2 border-t border-border/50">
               <span class="text-lg font-bold text-text-primary">Total a Cobrar</span>
               <span class="text-4xl font-black text-primary">${{ totalAmount.toFixed(2) }}</span>
             </div>
