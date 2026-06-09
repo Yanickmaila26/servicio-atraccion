@@ -1,10 +1,12 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import attractionService from '@/services/attractions'
 import catalogService from '@/services/catalog'
 import AttractionCard from '@/components/admin/AttractionCard.vue'
 import BaseInput from '@/components/common/BaseInput.vue'
 import { MagnifyingGlassIcon, AdjustmentsHorizontalIcon, MapPinIcon } from '@heroicons/vue/24/outline'
+import { HubConnectionBuilder } from '@microsoft/signalr'
+import { baseUrl } from '@/services/api'
 
 const attractions = ref([])
 const categories = ref([])
@@ -115,7 +117,47 @@ watch([selectedTags, selectedDifficulties, selectedLanguages, selectedLocation, 
   fetchData()
 }, { deep: true })
 
-onMounted(fetchData)
+let connection = null
+
+onMounted(async () => {
+  await fetchData()
+
+  // Conectar a SignalR para actualizaciones en tiempo real
+  try {
+    let hubUrl = '/hub/notifications'
+    if (baseUrl.startsWith('http')) {
+      hubUrl = `${new URL(baseUrl).origin}/hub/notifications`
+    }
+    
+    connection = new HubConnectionBuilder()
+      .withUrl(hubUrl)
+      .withAutomaticReconnect()
+      .build()
+
+    connection.on("OnAttractionCreated", (newAttraction) => {
+      console.log("Nueva atracción recibida por SignalR:", newAttraction)
+      // Añadir la atracción al principio de la lista si no existe ya
+      if (newAttraction && newAttraction.id) {
+        const index = attractions.value.findIndex(a => a.id === newAttraction.id)
+        if (index === -1) {
+          attractions.value.unshift(newAttraction)
+        }
+      }
+    })
+
+    await connection.start()
+    console.log("Conectado con éxito a SignalR Hub")
+  } catch (error) {
+    console.error("Error al conectar a SignalR Hub:", error)
+  }
+})
+
+onUnmounted(async () => {
+  if (connection) {
+    await connection.stop()
+    console.log("Desconectado de SignalR Hub")
+  }
+})
 </script>
 
 <template>

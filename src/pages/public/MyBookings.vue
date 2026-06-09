@@ -28,8 +28,8 @@ const loading = ref(true)
 const statusConfig = {
   1: { label: 'Pendiente', color: 'text-yellow-600 bg-yellow-50', icon: PendingIcon },
   2: { label: 'Confirmada', color: 'text-green-600 bg-green-50', icon: CheckCircleIcon },
-  3: { label: 'Completada', color: 'text-blue-600 bg-blue-50', icon: CheckCircleIcon },
-  4: { label: 'Cancelada', color: 'text-red-600 bg-red-50', icon: XCircleIcon }
+  3: { label: 'Cancelada', color: 'text-red-600 bg-red-50', icon: XCircleIcon },
+  4: { label: 'Completada', color: 'text-blue-600 bg-blue-50', icon: CheckCircleIcon }
 }
 
 const showReviewModal = ref(false)
@@ -105,8 +105,8 @@ const submitReview = async () => {
 }
 
 const isBookingClosed = (booking) => {
-  if (booking.statusId === 4) return false;
-  if (booking.statusId === 3) return true;
+  if (booking.statusId === 3) return false;
+  if (booking.statusId === 4) return true;
   const slotDate = new Date(`${booking.slotDate}T${booking.slotStartTime || '00:00:00'}`)
   return Date.now() > slotDate.getTime()
 }
@@ -225,7 +225,7 @@ onMounted(fetchData)
                   class="px-4 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-black border border-red-100 hover:bg-red-600 hover:text-white transition-all">
                   Cancelar Reserva
                 </button>
-                <button v-if="isBookingClosed(booking) && booking.statusId !== 4" 
+                <button v-if="isBookingClosed(booking) && booking.statusId !== 3" 
                   @click="openReviewModal(booking)"
                   class="px-4 py-2 bg-yellow-400 text-yellow-950 rounded-xl text-xs font-black hover:bg-yellow-500 transition-all shadow-sm">
                   Dejar Reseña

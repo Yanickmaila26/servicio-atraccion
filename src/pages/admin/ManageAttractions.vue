@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import attractionService from '@/services/attractions'
-import catalogService from '@/services/catalog'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseInput from '@/components/common/BaseInput.vue'
 import BaseModal from '@/components/common/BaseModal.vue'
@@ -12,8 +11,6 @@ import { PlusIcon, MagnifyingGlassIcon, MapPinIcon, TagIcon } from '@heroicons/v
 
 const router = useRouter()
 const attractions = ref([])
-const locations = ref([])
-const categories = ref([])
 // No more local modal state for editing, using a separate page now.
 const loading = ref(true)
 const searchQuery = ref('')
@@ -21,24 +18,19 @@ const searchQuery = ref('')
 const fetchData = async () => {
   loading.value = true
   try {
-    const [attrData, locData, catData] = await Promise.all([
-      attractionService.getManagementList({ 
-        searchTerm: searchQuery.value,
-        pageNumber: 1,
-        pageSize: 50 
-      }),
-      catalogService.getLocations(),
-      catalogService.getCategories()
-    ])
+    const attrData = await attractionService.getManagementList({ 
+      searchTerm: searchQuery.value,
+      pageNumber: 1,
+      pageSize: 50 
+    })
     attractions.value = attrData.items || []
-    locations.value = locData || []
-    categories.value = catData || []
   } catch (error) {
     console.error('Error fetching data:', error)
   } finally {
     loading.value = false
   }
 }
+
 
 
 
