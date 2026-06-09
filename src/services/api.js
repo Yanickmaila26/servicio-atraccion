@@ -85,13 +85,29 @@ api.interceptors.response.use(
       return Promise.reject(new Error('Sesión expirada'))
     }
 
-    // Manejo de errores de validación de .NET (400 Bad Request)
+    // Manejo de errores de validación (400 Bad Request)
     if (response?.status === 400 && response.data?.errors) {
       const validationErrors = response.data.errors
-      const messages = Object.keys(validationErrors).map(key => {
-        const fieldMessages = validationErrors[key].join(', ')
-        return `${key}: ${fieldMessages}`
-      })
+      let messages = []
+      
+      if (Array.isArray(validationErrors)) {
+        messages = validationErrors.map(err => {
+          if (typeof err === 'string') return err
+          if (err && typeof err === 'object') return err.message || JSON.stringify(err)
+          return String(err)
+        })
+      } else if (validationErrors && typeof validationErrors === 'object') {
+        messages = Object.keys(validationErrors).map(key => {
+          const val = validationErrors[key]
+          const fieldMessages = Array.isArray(val) ? val.join(', ') : String(val)
+          return `${key}: ${fieldMessages}`
+        })
+      } else if (typeof validationErrors === 'string') {
+        messages = [validationErrors]
+      } else {
+        messages = [JSON.stringify(validationErrors)]
+      }
+      
       return Promise.reject(new Error(messages.join('\n')))
     }
 
