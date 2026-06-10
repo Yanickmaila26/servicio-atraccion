@@ -43,7 +43,7 @@ const openDetail = async (invoice) => {
 
 const downloadPdf = (invoice) => {
   if (!invoice) return
-  const url = billingService.getDownloadUrl(invoice.bookingId || invoice.id)
+  const url = billingService.getDownloadUrl(invoice.id)
   window.open(url, '_blank')
 }
 

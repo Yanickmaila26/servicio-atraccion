@@ -23,9 +23,8 @@ export default {
     return api.post('/billing/invoice', { bookingId, ...payload })
   },
 
-  // Generar URL de descarga para el PDF
-  getDownloadUrl(bookingId) {
-    // IMPORTANTE: El endpoint real está en /booking/{id}/invoice/pdf (según AtraccionesBookingController)
-    return `${baseUrl}/booking/${bookingId}/invoice/pdf`
+  // Generar URL de descarga para el PDF usando el ID de la factura
+  getDownloadUrl(invoiceId) {
+    return `${baseUrl}/billing/invoice/${invoiceId}/pdf`
   }
 }

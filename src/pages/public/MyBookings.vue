@@ -146,9 +146,15 @@ const cancelBooking = async (booking) => {
 const downloadPdf = (booking) => {
   const invoice = invoices.value.find(i => i.bookingId === booking.id)
   if (invoice) {
-    Swal.fire('Descargando...', `Factura #${invoice.invoiceNumber} generándose.`, 'info')
+    const url = billingService.getDownloadUrl(invoice.id)
+    window.open(url, '_blank')
   } else {
-    Swal.fire('Procesando', 'Tu comprobante se está generando en el sistema.', 'info')
+    Swal.fire({
+      icon: 'info',
+      title: 'Sin comprobante',
+      text: 'Aún no se ha generado una factura para esta reserva. Si realizaste el pago, puede demorar unos minutos.',
+      confirmButtonColor: '#3b82f6'
+    })
   }
 }
 

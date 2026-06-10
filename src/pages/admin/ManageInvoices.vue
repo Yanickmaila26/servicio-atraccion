@@ -37,8 +37,7 @@ const openDetail = (invoice) => {
 
 const downloadPdf = (invoice) => {
   if (!invoice) return
-  // Usamos el bookingId que es lo que requiere el nuevo endpoint del back
-  const url = billingService.getDownloadUrl(invoice.bookingId || invoice.id)
+  const url = billingService.getDownloadUrl(invoice.id)
   window.open(url, '_blank')
 }
 
