@@ -23,8 +23,14 @@ export default {
   // Nota: /booking (AtraccionesBookingController) está reservado para el
   // contrato de integración externa con sistemas tipo Booking.com; el flujo
   // interno del checkout/cliente usa /admin-booking (BookingController).
-  create(data) {
-    return api.post('/admin-booking', data)
+  create(data, idempotencyKey) {
+    const config = {}
+    if (idempotencyKey) {
+      config.headers = {
+        'X-Idempotency-Key': idempotencyKey
+      }
+    }
+    return api.post('/admin-booking', data, config)
   },
 
   // Cancelar → POST /admin-booking/cancel

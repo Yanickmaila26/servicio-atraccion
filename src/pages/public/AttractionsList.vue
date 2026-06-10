@@ -136,11 +136,39 @@ onMounted(async () => {
 
     connection.on("OnAttractionCreated", (newAttraction) => {
       console.log("Nueva atracción recibida por SignalR:", newAttraction)
-      // Añadir la atracción al principio de la lista si no existe ya
-      if (newAttraction && newAttraction.id) {
+      if (newAttraction && newAttraction.id && newAttraction.isPublished && newAttraction.isActive) {
         const index = attractions.value.findIndex(a => a.id === newAttraction.id)
         if (index === -1) {
           attractions.value.unshift(newAttraction)
+        }
+      }
+    })
+
+    connection.on("OnAttractionUpdated", (updatedAttraction) => {
+      console.log("Atracción actualizada recibida por SignalR:", updatedAttraction)
+      if (updatedAttraction && updatedAttraction.id) {
+        const index = attractions.value.findIndex(a => a.id === updatedAttraction.id)
+        
+        if (updatedAttraction.isPublished && updatedAttraction.isActive) {
+          if (index !== -1) {
+            attractions.value[index] = { ...attractions.value[index], ...updatedAttraction }
+          } else {
+            attractions.value.unshift(updatedAttraction)
+          }
+        } else {
+          if (index !== -1) {
+            attractions.value.splice(index, 1)
+          }
+        }
+      }
+    })
+
+    connection.on("OnAttractionDeleted", (data) => {
+      console.log("Atracción eliminada recibida por SignalR:", data)
+      if (data && data.id) {
+        const index = attractions.value.findIndex(a => a.id === data.id)
+        if (index !== -1) {
+          attractions.value.splice(index, 1)
         }
       }
     })
