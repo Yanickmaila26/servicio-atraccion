@@ -333,7 +333,7 @@ async function processPayment() {
     // PASO 3: Registrar el pago en nuestra API (Directamente como Completado/Succeeded)
     const paymentPayload = {
       bookingId: booking.id, // Ojo: asumimos que el backend retorna el ID (booking.id)
-      paymentMethodId: 1, // 1=Tarjeta
+      paymentMethodId: '1', // 1=Tarjeta
       amount: cartTotal.value,
       currencyCode: 'USD',
       transactionExternalId: fakeExternalId,

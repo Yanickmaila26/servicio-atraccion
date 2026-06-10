@@ -276,7 +276,7 @@ async function processPayment() {
 
     await paymentService.create({
       bookingId: booking.bookingId || booking.id,
-      paymentMethodId: paymentMethod.value === 'paypal' ? 3 : 1,
+      paymentMethodId: (paymentMethod.value === 'paypal' ? 3 : 1).toString(),
       amount: cartTotal.value,
       currencyCode: 'USD',
       transactionExternalId: fakeExternalId,
