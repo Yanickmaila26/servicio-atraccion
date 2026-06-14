@@ -143,11 +143,24 @@ const cancelBooking = async (booking) => {
   }
 }
 
-const downloadPdf = (booking) => {
+const downloadPdf = async (booking) => {
   const invoice = invoices.value.find(i => i.bookingId === booking.id)
   if (invoice) {
-    const url = billingService.getDownloadUrl(invoice.id)
-    window.open(url, '_blank')
+    Swal.fire({
+      title: 'Descargando...',
+      text: 'Preparando tu factura en PDF',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading()
+      }
+    })
+    try {
+      await billingService.downloadPdfFile(invoice.id, invoice.invoiceNumber || 'factura')
+      Swal.close()
+    } catch (error) {
+      console.error(error)
+      Swal.fire('Error', 'No se pudo descargar la factura. Inténtalo de nuevo.', 'error')
+    }
   } else {
     Swal.fire({
       icon: 'info',

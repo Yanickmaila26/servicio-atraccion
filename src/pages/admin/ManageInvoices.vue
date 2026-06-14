@@ -7,7 +7,8 @@ import {
   MagnifyingGlassIcon, 
   EyeIcon, 
   ArrowDownTrayIcon,
-  FunnelIcon
+  FunnelIcon,
+  PrinterIcon
 } from '@heroicons/vue/24/outline'
 import Swal from 'sweetalert2'
 
@@ -30,15 +31,43 @@ const fetchInvoices = async () => {
   }
 }
 
-const openDetail = (invoice) => {
+const fetchingDetail = ref(false)
+const openDetail = async (invoice) => {
+  fetchingDetail.value = true
   selectedInvoice.value = invoice
   showDetail.value = true
+  try {
+    const fullInvoice = await billingService.getById(invoice.id)
+    selectedInvoice.value = fullInvoice
+  } catch (error) {
+    console.error("Error al obtener detalle de factura:", error)
+    Swal.fire('Error', 'No se pudo cargar el detalle de la factura', 'error')
+  } finally {
+    fetchingDetail.value = false
+  }
 }
 
-const downloadPdf = (invoice) => {
+const downloadPdf = async (invoice) => {
   if (!invoice) return
-  const url = billingService.getDownloadUrl(invoice.id)
-  window.open(url, '_blank')
+  Swal.fire({
+    title: 'Descargando...',
+    text: 'Preparando tu factura en PDF',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading()
+    }
+  })
+  try {
+    await billingService.downloadPdfFile(invoice.id, invoice.invoiceNumber || 'factura')
+    Swal.close()
+  } catch (error) {
+    console.error(error)
+    Swal.fire('Error', 'No se pudo descargar la factura. Inténtalo de nuevo.', 'error')
+  }
+}
+
+const printInvoice = () => {
+  window.print()
 }
 
 const getStatusClass = (status) => {
@@ -56,7 +85,7 @@ onMounted(fetchInvoices)
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 print-hidden">
       <div>
         <h1 class="text-3xl font-black text-text-primary flex items-center gap-3">
           <DocumentTextIcon class="h-10 w-10 text-primary" /> Gestión de Facturas
@@ -66,7 +95,7 @@ onMounted(fetchInvoices)
     </div>
 
     <!-- Filters -->
-    <div class="bg-surface p-4 rounded-3xl border border-border flex flex-wrap gap-4 items-center">
+    <div class="bg-surface p-4 rounded-3xl border border-border flex flex-wrap gap-4 items-center print-hidden">
       <div class="relative flex-1 min-w-[250px]">
         <MagnifyingGlassIcon class="h-5 w-5 text-text-secondary absolute left-4 top-1/2 -translate-y-1/2" />
         <input 
@@ -82,7 +111,7 @@ onMounted(fetchInvoices)
     </div>
 
     <!-- Table -->
-    <div class="bg-surface rounded-3xl border border-border overflow-hidden shadow-sm">
+    <div class="bg-surface rounded-3xl border border-border overflow-hidden shadow-sm print-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
@@ -134,20 +163,34 @@ onMounted(fetchInvoices)
     </div>
 
     <!-- Detail Modal -->
-    <div v-if="showDetail" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div class="bg-surface w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in flex flex-col max-h-[90vh]">
-        <div class="p-6 border-b border-border flex justify-between items-center bg-primary text-white shrink-0">
+    <div v-if="showDetail" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm print-overlay">
+      <div class="bg-surface w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in flex flex-col max-h-[90vh] print-modal-content">
+        <div class="p-6 border-b border-border flex justify-between items-center bg-primary text-white shrink-0 print-hidden">
           <h3 class="text-xl font-black uppercase tracking-tight">Detalle de Factura</h3>
           <button @click="showDetail = false" class="p-2 hover:bg-white/20 rounded-full transition-colors">✕</button>
         </div>
-        <div class="p-8 space-y-6 overflow-y-auto">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-8">
-            <div class="space-y-1">
-              <p class="text-[10px] font-black uppercase text-text-secondary">Emisor</p>
-              <p class="font-bold text-text-primary">Sistema de Atracciones S.A.</p>
+        
+        <!-- Printable Invoice Container -->
+        <div id="printable-invoice" class="p-8 space-y-6 overflow-y-auto flex-1">
+          <!-- Header print-only logo & name -->
+          <div class="hidden print-block border-b-2 border-primary pb-6 justify-between items-start mb-6">
+            <div>
+              <h1 class="text-2xl font-black text-primary">TerraQuest Experiences</h1>
               <p class="text-xs text-text-secondary">Quito, Ecuador</p>
             </div>
-            <div class="space-y-1 text-right">
+            <div class="text-right">
+              <h2 class="text-xl font-bold uppercase tracking-wider text-text-primary">Factura Comercial</h2>
+              <p class="text-sm font-black text-primary">{{ selectedInvoice.invoiceNumber || selectedInvoice.invoice_number }}</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 border-b border-border pb-6">
+            <div class="space-y-1">
+              <p class="text-[10px] font-black uppercase text-text-secondary">Emisor</p>
+              <p class="font-bold text-text-primary">TerraQuest Experiences S.A.</p>
+              <p class="text-xs text-text-secondary">Quito, Ecuador</p>
+            </div>
+            <div class="space-y-1 sm:text-right">
               <p class="text-[10px] font-black uppercase text-text-secondary">Factura N°</p>
               <p class="text-xl font-black text-primary">{{ selectedInvoice.invoiceNumber || selectedInvoice.invoice_number || 'F-001' }}</p>
               <p class="text-xs text-text-secondary italic">Fecha: {{ new Date(selectedInvoice.createdAt || selectedInvoice.created_at).toLocaleString() }}</p>
@@ -159,44 +202,55 @@ onMounted(fetchInvoices)
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p class="text-xs font-bold text-text-secondary">Nombre / Razón Social</p>
-                <p class="text-sm font-black">{{ selectedInvoice.customerName || selectedInvoice.customer_name }}</p>
+                <p class="text-sm font-black text-text-primary">{{ selectedInvoice.customerName || selectedInvoice.customer_name }}</p>
               </div>
               <div>
                 <p class="text-xs font-bold text-text-secondary">RUC / Cédula</p>
-                <p class="text-sm font-black font-mono">{{ selectedInvoice.taxId || selectedInvoice.tax_id }}</p>
+                <p class="text-sm font-black font-mono text-text-primary">{{ selectedInvoice.taxId || selectedInvoice.tax_id }}</p>
               </div>
               <div>
                 <p class="text-xs font-bold text-text-secondary">Email</p>
-                <p class="text-sm font-medium">{{ selectedInvoice.email }}</p>
+                <p class="text-sm font-medium text-text-primary">{{ selectedInvoice.email || 'N/A' }}</p>
               </div>
               <div>
                 <p class="text-xs font-bold text-text-secondary">Dirección</p>
-                <p class="text-sm font-medium">{{ selectedInvoice.address || 'N/A' }}</p>
+                <p class="text-sm font-medium text-text-primary">{{ selectedInvoice.address || 'N/A' }}</p>
               </div>
             </div>
           </div>
 
           <div class="space-y-4">
-            <p class="text-[10px] font-black uppercase text-text-secondary">Detalle de Productos</p>
-            <div class="space-y-2">
-              <div v-for="item in (selectedInvoice.items || selectedInvoice.details || [])" :key="item.id" class="flex justify-between items-center text-sm py-2 border-b border-border border-dashed">
-                <div>
-                  <span class="font-black mr-2">{{ item.quantity }}x</span>
-                  <span class="text-text-primary font-medium">{{ item.description }}</span>
-                </div>
-                <span class="font-bold">${{ ( (item.unitPrice || item.unit_price || 0) * item.quantity).toFixed(2) }}</span>
-              </div>
+            <!-- Loading State -->
+            <div v-if="fetchingDetail" class="flex flex-col items-center justify-center py-10 space-y-4 print-hidden">
+              <div class="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full"></div>
+              <p class="text-xs font-bold text-text-secondary animate-pulse uppercase tracking-widest">Cargando detalles...</p>
             </div>
+
+            <template v-else>
+              <p class="text-[10px] font-black uppercase text-text-secondary">Detalle de Productos</p>
+              <div class="space-y-2">
+                <div v-for="item in (selectedInvoice.items || selectedInvoice.details || [])" :key="item.id" class="flex justify-between items-center text-sm py-2 border-b border-border border-dashed">
+                  <div>
+                    <span class="font-black mr-2 text-primary">{{ item.quantity }}x</span>
+                    <span class="text-text-primary font-medium">{{ item.description }}</span>
+                  </div>
+                  <span class="font-bold text-text-primary">${{ ((item.unitPrice || item.unit_price || 0) * item.quantity).toFixed(2) }}</span>
+                </div>
+                <div v-if="!(selectedInvoice.items || selectedInvoice.details)?.length" class="text-center py-4 italic text-text-secondary text-xs">
+                  Detalle no disponible (Solo visualización de reserva)
+                </div>
+              </div>
+            </template>
           </div>
 
           <div class="pt-4 flex flex-col items-end gap-1">
             <div class="flex justify-between w-48 text-sm">
               <span class="text-text-secondary">Subtotal</span>
-              <span class="font-bold">${{ (selectedInvoice.subtotal || (selectedInvoice.total / 1.15) || 0).toFixed(2) }}</span>
+              <span class="font-bold text-text-primary">${{ (selectedInvoice.subtotal || (selectedInvoice.total / 1.15) || 0).toFixed(2) }}</span>
             </div>
             <div class="flex justify-between w-48 text-sm">
               <span class="text-text-secondary">IVA (15%)</span>
-              <span class="font-bold">${{ (selectedInvoice.taxAmount || selectedInvoice.tax_amount || 0).toFixed(2) }}</span>
+              <span class="font-bold text-text-primary">${{ (selectedInvoice.taxAmount || selectedInvoice.tax_amount || 0).toFixed(2) }}</span>
             </div>
             <div class="flex justify-between w-48 text-xl border-t border-primary pt-2 mt-2">
               <span class="font-black text-primary">TOTAL</span>
@@ -204,8 +258,12 @@ onMounted(fetchInvoices)
             </div>
           </div>
         </div>
-        <div class="p-6 bg-background/50 flex justify-end gap-3">
+        
+        <div class="p-6 bg-background/50 border-t border-border flex justify-end gap-3 print-hidden shrink-0">
           <BaseButton variant="outline" @click="showDetail = false">Cerrar</BaseButton>
+          <button @click="printInvoice" class="px-6 py-3 bg-yellow-400 text-yellow-950 font-black rounded-2xl shadow-lg shadow-yellow-400/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2">
+            <PrinterIcon class="h-5 w-5" /> Imprimir
+          </button>
           <BaseButton class="gap-2" @click="downloadPdf(selectedInvoice)">
             <ArrowDownTrayIcon class="h-5 w-5" /> Descargar PDF
           </BaseButton>
@@ -215,7 +273,7 @@ onMounted(fetchInvoices)
   </div>
 </template>
 
-<style scoped>
+<style>
 .animate-in {
   animation: fadeIn 0.3s ease-out;
 }
@@ -229,5 +287,41 @@ onMounted(fetchInvoices)
 @keyframes zoomIn {
   from { transform: scale(0.95); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
+}
+
+@media print {
+  /* Ocultar el resto del sitio web */
+  body * {
+    visibility: hidden !important;
+  }
+  /* Ocultar overlays y bordes oscuros del modal en impresión */
+  .print-overlay, .print-modal-content {
+    background: transparent !important;
+    box-shadow: none !important;
+    position: static !important;
+    display: block !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  /* Mostrar solo el contenedor imprimible de la factura */
+  #printable-invoice, #printable-invoice * {
+    visibility: visible !important;
+  }
+  #printable-invoice {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: white;
+    color: black;
+  }
+  .print-hidden {
+    display: none !important;
+  }
+  .print-block {
+    display: flex !important;
+  }
 }
 </style>

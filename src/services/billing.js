@@ -26,5 +26,25 @@ export default {
   // Generar URL de descarga para el PDF usando el ID de la factura
   getDownloadUrl(invoiceId) {
     return `${baseUrl}/billing/invoice/${invoiceId}/pdf`
+  },
+
+  // Descargar el archivo PDF autenticado usando axios
+  async downloadPdfFile(invoiceId, invoiceNumber = 'factura') {
+    try {
+      const response = await api.get(`/billing/invoice/${invoiceId}/pdf`, { responseType: 'blob' })
+      const blob = new Blob([response], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `Factura-${invoiceNumber}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      return true
+    } catch (error) {
+      console.error('Error al descargar PDF:', error)
+      throw error
+    }
   }
 }
