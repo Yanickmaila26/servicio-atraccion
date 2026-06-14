@@ -51,7 +51,7 @@ const fetchData = async () => {
   if (bookingsRes.status === 'fulfilled') {
     const data = bookingsRes.value
     bookings.value = (data?.items || data || []).sort((a, b) => {
-      return new Date(a.slotDate) - new Date(b.slotDate)
+      return new Date(b.slotDate) - new Date(a.slotDate)
     })
   } else {
     console.error('Error cargando reservas:', bookingsRes.reason)
