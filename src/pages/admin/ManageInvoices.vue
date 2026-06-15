@@ -148,11 +148,8 @@ onMounted(fetchInvoices)
               </td>
               <td class="px-6 py-4 text-center">
                 <div class="flex justify-center gap-2">
-                  <button @click="openDetail(inv)" class="p-2 hover:bg-primary/10 text-primary rounded-lg transition-all" title="Ver Detalle">
-                    <EyeIcon class="h-5 w-5" />
-                  </button>
-                  <button @click="downloadPdf(inv)" class="p-2 hover:bg-green-50 text-green-600 rounded-lg transition-all" title="Descargar PDF">
-                    <ArrowDownTrayIcon class="h-5 w-5" />
+                  <button @click="openDetail(inv)" class="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-xl text-xs font-bold hover:bg-primary/20 transition-all" title="Ver Detalle">
+                    <EyeIcon class="h-4 w-4" /> Ver / Imprimir
                   </button>
                 </div>
               </td>
@@ -262,11 +259,8 @@ onMounted(fetchInvoices)
         <div class="p-6 bg-background/50 border-t border-border flex justify-end gap-3 print-hidden shrink-0">
           <BaseButton variant="outline" @click="showDetail = false">Cerrar</BaseButton>
           <button @click="printInvoice" class="px-6 py-3 bg-yellow-400 text-yellow-950 font-black rounded-2xl shadow-lg shadow-yellow-400/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2">
-            <PrinterIcon class="h-5 w-5" /> Imprimir
+            <PrinterIcon class="h-5 w-5" /> Imprimir / Guardar como PDF
           </button>
-          <BaseButton class="gap-2" @click="downloadPdf(selectedInvoice)">
-            <ArrowDownTrayIcon class="h-5 w-5" /> Descargar PDF
-          </BaseButton>
         </div>
       </div>
     </div>

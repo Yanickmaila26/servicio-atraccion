@@ -122,11 +122,8 @@ onMounted(fetchMyInvoices)
             <span class="text-sm font-medium text-text-secondary">{{ inv.createdAt || inv.created_at ? new Date(inv.createdAt || inv.created_at).toLocaleDateString() : 'N/A' }}</span>
           </div>
           <div class="flex justify-end gap-2">
-            <button @click="openDetail(inv)" class="p-2 hover:bg-primary/10 text-primary rounded-xl transition-all" title="Ver Detalle">
-              <EyeIcon class="h-5 w-5" />
-            </button>
-            <button @click="downloadPdf(inv)" class="flex items-center gap-2 px-4 py-2 bg-background border border-border rounded-xl text-xs font-bold text-text-primary hover:bg-surface transition-all">
-              <ArrowDownTrayIcon class="h-4 w-4" /> PDF
+            <button @click="openDetail(inv)" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary-dark transition-all" title="Ver Detalle">
+              <EyeIcon class="h-4 w-4" /> Ver Detalle / Imprimir
             </button>
           </div>
         </div>
@@ -236,12 +233,9 @@ onMounted(fetchMyInvoices)
           <button @click="showDetail = false" class="w-full sm:w-auto px-6 py-3 border border-border rounded-2xl text-sm font-bold text-text-secondary hover:bg-surface transition-all">
             Cerrar
           </button>
-          <div class="flex-1 flex gap-3">
-            <button @click="printInvoice" class="flex-1 py-3 bg-yellow-400 text-yellow-950 font-black rounded-2xl shadow-lg shadow-yellow-400/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2">
-              <PrinterIcon class="h-5 w-5" /> Imprimir
-            </button>
-            <button @click="downloadPdf(selectedInvoice)" class="flex-1 py-3 bg-primary text-white font-black rounded-2xl shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2">
-              <ArrowDownTrayIcon class="h-5 w-5" /> Descargar PDF
+          <div class="flex-1">
+            <button @click="printInvoice" class="w-full py-3 bg-yellow-400 text-yellow-950 font-black rounded-2xl shadow-lg shadow-yellow-400/20 hover:scale-[1.02] transition-transform flex items-center justify-center gap-2">
+              <PrinterIcon class="h-5 w-5" /> Imprimir / Guardar como PDF
             </button>
           </div>
         </div>

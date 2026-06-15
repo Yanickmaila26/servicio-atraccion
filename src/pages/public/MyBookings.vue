@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import bookingService from '@/services/bookings'
 import billingService from '@/services/billing'
 import reviewService from '@/services/reviews'
@@ -18,9 +19,10 @@ import {
   StarIcon,
   ChatBubbleBottomCenterTextIcon,
   UserIcon,
-  DocumentArrowDownIcon
+  DocumentTextIcon
 } from '@heroicons/vue/24/outline'
 
+const router = useRouter()
 const bookings = ref([])
 const invoices = ref([])
 const loading = ref(true)
@@ -143,24 +145,10 @@ const cancelBooking = async (booking) => {
   }
 }
 
-const downloadPdf = async (booking) => {
+const viewInvoice = (booking) => {
   const invoice = invoices.value.find(i => i.bookingId === booking.id)
   if (invoice) {
-    Swal.fire({
-      title: 'Descargando...',
-      text: 'Preparando tu factura en PDF',
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading()
-      }
-    })
-    try {
-      await billingService.downloadPdfFile(invoice.id, invoice.invoiceNumber || 'factura')
-      Swal.close()
-    } catch (error) {
-      console.error(error)
-      Swal.fire('Error', 'No se pudo descargar la factura. Inténtalo de nuevo.', 'error')
-    }
+    router.push('/my-invoices')
   } else {
     Swal.fire({
       icon: 'info',
@@ -249,8 +237,8 @@ onMounted(fetchData)
                   class="px-4 py-2 bg-yellow-400 text-yellow-950 rounded-xl text-xs font-black hover:bg-yellow-500 transition-all shadow-sm">
                   Dejar Reseña
                 </button>
-                <button @click="downloadPdf(booking)" class="p-2 bg-background border border-border rounded-xl hover:bg-surface transition-all" title="Ver Comprobante">
-                  <DocumentArrowDownIcon class="h-5 w-5 text-text-secondary" />
+                <button v-if="invoices.some(i => i.bookingId === booking.id)" @click="viewInvoice(booking)" class="p-2 bg-background border border-border rounded-xl hover:bg-surface transition-all" title="Ver Comprobante">
+                  <DocumentTextIcon class="h-5 w-5 text-text-secondary" />
                 </button>
               </div>
             </div>
